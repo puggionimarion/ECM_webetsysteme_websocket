@@ -1,0 +1,195 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml" lang="fr">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Le WebSocket avec Node.js &#8212; documentation WebSocket </title>
+    <link rel="stylesheet" href="_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <script type="text/javascript" src="_static/translations.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Recherche" href="search.html" />
+    <link rel="next" title="Tutoriel : comment faire un chat sur Node.js avec Socket.io?" href="tuto.html" />
+    <link rel="prev" title="Introduction au WebSocket" href="intro.html" />
+   
+  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head>
+  <body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="le-websocket-avec-node-js">
+<h1>Le WebSocket avec Node.js<a class="headerlink" href="#le-websocket-avec-node-js" title="Lien permanent vers ce titre">¶</a></h1>
+<div class="section" id="les-modules-de-websocket">
+<h2>Les modules de WebSocket<a class="headerlink" href="#les-modules-de-websocket" title="Lien permanent vers ce titre">¶</a></h2>
+<p>Il existe différents modules sur npm pour faire du socket avec Node.js:</p>
+<ul class="simple">
+<li>socket</li>
+<li>socket.io</li>
+<li>ws</li>
+<li>…</li>
+</ul>
+<p>Par la suite, nous allons vous présenter socket.io (<a class="reference external" href="https://socket.io/">https://socket.io/</a>).</p>
+</div>
+<div class="section" id="socket-io">
+<h2>Socket.io<a class="headerlink" href="#socket-io" title="Lien permanent vers ce titre">¶</a></h2>
+<p>Comme nous l’avons vu précédemment, socket permet une communication bidirectionnelle en temps réel (sans avoir à rafaîchir la page) entre un client et un serveur.
+Socket.IO fonctionne avec :</p>
+<ul class="simple">
+<li>un serveur HTTP en Node.JS : socket.io</li>
+<li>une librairie côté navigateur (client): socket.io-client</li>
+</ul>
+<p>Le principe est de s’échanger des informations à travers certains canaux de communication. Sur un canal, le serveur et le client vont pouvoir soit émettre soit recevoir ces informations. On émet avec “.emit” et on reçoit avec “.on”.</p>
+<p>Voici comment initialiser le côté serveur lorsqu’on utilise express:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">var</span> <span class="n">app</span> <span class="o">=</span> <span class="n">require</span><span class="p">(</span><span class="s1">&#39;express&#39;</span><span class="p">)();</span>
+<span class="n">var</span> <span class="n">server</span> <span class="o">=</span> <span class="n">require</span><span class="p">(</span><span class="s1">&#39;http&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">Server</span><span class="p">(</span><span class="n">app</span><span class="p">);</span>
+<span class="n">var</span> <span class="n">io</span> <span class="o">=</span> <span class="n">require</span><span class="p">(</span><span class="s1">&#39;socket.io&#39;</span><span class="p">)(</span><span class="n">server</span><span class="p">);</span>
+
+<span class="n">server</span><span class="o">.</span><span class="n">listen</span><span class="p">(</span><span class="mi">80</span><span class="p">);</span>
+
+<span class="n">app</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;/&#39;</span><span class="p">,</span> <span class="n">function</span> <span class="p">(</span><span class="n">req</span><span class="p">,</span> <span class="n">res</span><span class="p">)</span> <span class="p">{</span>
+  <span class="n">res</span><span class="o">.</span><span class="n">sendfile</span><span class="p">(</span><span class="n">__dirname</span> <span class="o">+</span> <span class="s1">&#39;/index.html&#39;</span><span class="p">);</span>
+<span class="p">});</span>
+
+<span class="n">io</span><span class="o">.</span><span class="n">on</span><span class="p">(</span><span class="s1">&#39;connection&#39;</span><span class="p">,</span> <span class="n">function</span> <span class="p">(</span><span class="n">socket</span><span class="p">)</span> <span class="p">{</span>
+  <span class="n">socket</span><span class="o">.</span><span class="n">emit</span><span class="p">(</span><span class="s1">&#39;news&#39;</span><span class="p">,</span> <span class="p">{</span> <span class="n">hello</span><span class="p">:</span> <span class="s1">&#39;world&#39;</span> <span class="p">});</span>
+  <span class="n">socket</span><span class="o">.</span><span class="n">on</span><span class="p">(</span><span class="s1">&#39;my other event&#39;</span><span class="p">,</span> <span class="n">function</span> <span class="p">(</span><span class="n">data</span><span class="p">)</span> <span class="p">{</span>
+    <span class="n">console</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">data</span><span class="p">);</span>
+  <span class="p">});</span>
+<span class="p">});</span>
+</pre></div>
+</div>
+<p>Ici, dès qu’un client entre dans le “io.on(“connection”, …” grâce à un “var socket = io.connect(“<a class="reference external" href="http://localhost">http://localhost</a>”);”, le canal de communication est créé, on va executer ce qu’il y a dans la “function”.
+Plus précisement, on va envoyer au client connecté sur le canal des évènements de type “news” contenant des informations, qui constituent ici un fichier JSON “{ hello: “world” }”. Il ne pourra les traiter que si il a de son côté un “.on” spécifique aux évènements “news”.
+On va également attendre des évènements de type “my other event” et dès leur réception, on va afficher à la console les “data” qui nous on été envoyées.</p>
+<p>et côté client:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="o">&lt;</span><span class="n">script</span> <span class="n">src</span><span class="o">=</span><span class="s2">&quot;/socket.io/socket.io.js&quot;</span><span class="o">&gt;&lt;/</span><span class="n">script</span><span class="o">&gt;</span>
+<span class="o">&lt;</span><span class="n">script</span><span class="o">&gt;</span>
+  <span class="n">var</span> <span class="n">socket</span> <span class="o">=</span> <span class="n">io</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="s1">&#39;http://localhost&#39;</span><span class="p">);</span>
+  <span class="n">socket</span><span class="o">.</span><span class="n">on</span><span class="p">(</span><span class="s1">&#39;news&#39;</span><span class="p">,</span> <span class="n">function</span> <span class="p">(</span><span class="n">data</span><span class="p">)</span> <span class="p">{</span>
+    <span class="n">console</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">data</span><span class="p">);</span>
+    <span class="n">socket</span><span class="o">.</span><span class="n">emit</span><span class="p">(</span><span class="s1">&#39;my other event&#39;</span><span class="p">,</span> <span class="p">{</span> <span class="n">my</span><span class="p">:</span> <span class="s1">&#39;data&#39;</span> <span class="p">});</span>
+  <span class="p">});</span>
+<span class="o">&lt;/</span><span class="n">script</span><span class="o">&gt;</span>
+</pre></div>
+</div>
+<p>Il suffit d’un “io.connect()” pour demander la création du canal de communication avec le serveur. On écoute avec un “socket.on()”, ici on attend pour les évènements de type “news”. Si on en reçoit un, on va executer la “function” avec les “data”, donc les informations, qui nous ont été envoyées par le serveur avec un “.emit”.
+Enfin “socket.emit” permet d’envoyer sur le canal “my other event” des données de type JSON, ici “{ my: “data” }”.</p>
+<p>Voila pour le fonctionnement de base, maintenant nous allons entrer un peu dans les détails.</p>
+<p>Côté serveur, il existe donc un “io.on(“connection”, …” qui permet de savoir quand un utilisateur se connecte. Il existe aussi un “disconnect” afin de gérer la déconnexion des clients:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">socket</span><span class="o">.</span><span class="n">on</span><span class="p">(</span><span class="s1">&#39;disconnect&#39;</span><span class="p">,</span> <span class="n">function</span> <span class="p">()</span> <span class="p">{</span>
+    <span class="n">io</span><span class="o">.</span><span class="n">emit</span><span class="p">(</span><span class="s1">&#39;user disconnected&#39;</span><span class="p">);</span>
+  <span class="p">});</span>
+</pre></div>
+</div>
+<p>Le reste du temps on personnalise le premier paramètre comme on le faisait précédemment avec “news” ou “my other event” afin de personnaliser les actions.</p>
+<p>Il existe plusieurs moyens depuis le serveur d’envoyer des informations:</p>
+<ul class="simple">
+<li>Soit on les envoie à tout le monde avec un “io.emit”</li>
+<li>Soit on ne les envoie qu’au client qui déclenche la fonction avec un “socket.emit”</li>
+<li>Soit on les envoie à tout le monde sauf au client qui déclenche la fonction avec un “socket.broadcast.emit”</li>
+<li>On peut les envoyer également à un personne en particulier, pour cela il suffit de sauvegarder les socket des gens connectés dans une liste et d’y faire appel : “socketdelapersonne.emit”</li>
+</ul>
+<p>Voilà pour ce qu’il y a principalement à comprendre pour le tuto, mais Socket.IO permet aussi de:</p>
+<ul class="simple">
+<li>multiplexer une connection grâce à un système de noms pour les connections</li>
+<li>envoyer des messages volatiles (ils ne seront traités que si le client est en capacité de le faire à ce moment là)</li>
+<li>confirmer la réception d’un message</li>
+<li>parametrer la connection (pingTimeout…)</li>
+<li>gérer les erreurs</li>
+<li>…</li>
+</ul>
+<p>Pour plus d’informations à propos de ces fonctionnalités, n’hésitez pas à aller voir la doc qui est très détaillée: <a class="reference external" href="https://socket.io/docs/">https://socket.io/docs/</a>.</p>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="index.html">WebSocket</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="intro.html">Introduction au WebSocket</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Le WebSocket avec Node.js</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#les-modules-de-websocket">Les modules de WebSocket</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#socket-io">Socket.io</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="tuto.html">Tutoriel : comment faire un chat sur Node.js avec Socket.io?</a></li>
+<li class="toctree-l1"><a class="reference internal" href="code.html">Code</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="index.html">Documentation overview</a><ul>
+      <li>Previous: <a href="intro.html" title="Chapitre précédent">Introduction au WebSocket</a></li>
+      <li>Next: <a href="tuto.html" title="Chapitre suivant">Tutoriel : comment faire un chat sur Node.js avec Socket.io?</a></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Recherche rapide</h3>
+    <form class="search" action="search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2018, LECAM Marie & PUGGIONI Marion.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.6.6</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.10</a>
+      
+      |
+      <a href="_sources/node.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

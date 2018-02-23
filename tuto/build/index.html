@@ -1,0 +1,147 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml" lang="fr">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Cours : Le WebSocket avec Node.js &#8212; documentation WebSocket </title>
+    <link rel="stylesheet" href="_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <script type="text/javascript" src="_static/translations.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Recherche" href="search.html" />
+    <link rel="next" title="Introduction au WebSocket" href="intro.html" />
+   
+  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head>
+  <body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="cours-le-websocket-avec-node-js">
+<h1>Cours : Le WebSocket avec Node.js<a class="headerlink" href="#cours-le-websocket-avec-node-js" title="Lien permanent vers ce titre">¶</a></h1>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="intro.html">Introduction au WebSocket</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="intro.html#qu-est-ce-que-websocket">Qu’est-ce que WebSocket?</a></li>
+<li class="toctree-l2"><a class="reference internal" href="intro.html#a-quoi-ca-sert">A quoi ça sert?</a></li>
+<li class="toctree-l2"><a class="reference internal" href="intro.html#exemples-d-applications">Exemples d’applications</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="node.html">Le WebSocket avec Node.js</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="node.html#les-modules-de-websocket">Les modules de WebSocket</a></li>
+<li class="toctree-l2"><a class="reference internal" href="node.html#socket-io">Socket.io</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="tuto.html">Tutoriel : comment faire un chat sur Node.js avec Socket.io?</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="tuto.html#point-de-depart">Point de départ</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tuto.html#integration-de-socket">Intégration de Socket</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tuto.html#fonctionnalites-du-chat">Fonctionnalités du chat</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="code.html">Code</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="code.html#app-js">app.js</a></li>
+<li class="toctree-l2"><a class="reference internal" href="code.html#package-json-a-la-source-du-projet">package.json (à la source du projet)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="code.html#websocketdemo-ejs">websocketdemo.ejs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="code.html#home-ejs">home.ejs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="code.html#ejs">404.ejs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="code.html#navbar-ejs">navbar.ejs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="code.html#js-import-ejs">js_import.ejs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="code.html#header-imports-ejs">header_imports.ejs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="code.html#javascript-js">javascript.js</a></li>
+<li class="toctree-l2"><a class="reference internal" href="code.html#main-css">main.css</a></li>
+<li class="toctree-l2"><a class="reference internal" href="code.html#package-json-dans-assets">package.json (dans assets)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="code.html#socket-js">socket.js</a></li>
+</ul>
+</li>
+</ul>
+</div>
+<p>Le site de démonstration tourne aux adresses: <a class="reference external" href="http://node.origan.ovh1.ec-m.fr/">http://node.origan.ovh1.ec-m.fr/</a> et <a class="reference external" href="http://node.lavande.ovh1.ec-m.fr/">http://node.lavande.ovh1.ec-m.fr/</a></p>
+<p>Modules à installer pour le tuto :  materialize-css, express, ejs, socket.io</p>
+<p>Références : <a class="reference external" href="https://fr.wikipedia.org/wiki/Socket">https://fr.wikipedia.org/wiki/Socket</a>, <a class="reference external" href="https://socket.io/">https://socket.io/</a></p>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="#">WebSocket</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="intro.html">Introduction au WebSocket</a></li>
+<li class="toctree-l1"><a class="reference internal" href="node.html">Le WebSocket avec Node.js</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tuto.html">Tutoriel : comment faire un chat sur Node.js avec Socket.io?</a></li>
+<li class="toctree-l1"><a class="reference internal" href="code.html">Code</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="#">Documentation overview</a><ul>
+      <li>Next: <a href="intro.html" title="Chapitre suivant">Introduction au WebSocket</a></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Recherche rapide</h3>
+    <form class="search" action="search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2018, LECAM Marie & PUGGIONI Marion.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.6.6</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.10</a>
+      
+      |
+      <a href="_sources/index.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

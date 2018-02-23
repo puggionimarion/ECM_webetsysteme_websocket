@@ -1,0 +1,87 @@
+<html>
+
+ <head>
+     <meta charset="utf-8" />
+     <title>Aide en ligne</title>
+     <!--Permet d'inclure les imports pour la police, materialize et css-->
+     <% include partials/header_imports.ejs %>
+
+ </head>
+ <body>
+     <!--Permet d'inclure le menu-->
+     <canvas class="whiteboard" id= "whiteboard" ></canvas>
+    <% include partials/navbar.ejs %>
+
+  <div class="row" id="screen1">
+      <div class="image">
+        <div class="col s4 offset-s4" id="formulaire">
+         <p> Bienvenue sur l'aide en ligne! <p>
+         </br>
+         <form action="" id="inputname">
+                <p>
+                  <input name="group1" type="radio" id="e" required="required" value="eleve"/>
+                  <label for="e">Eleve</label>
+                </p>
+                <p>
+                  <input name="group1" type="radio" id="p" required="required" value="prof"/>
+                  <label for="p">Prof</label>
+               </p>
+               </br>
+                  <input id="mbis" autocomplete="off" placeholder="Entrez un pseudo!" required="required" />
+               </br></br>
+                  <button type="submit" class="waves-effect waves-light btn green darken-2" id="submitbutton"> Entrer </button>
+          </form>
+        </div>
+      </div>
+  </div>
+
+  <div class="row" id="screen2">
+
+        <div class="col s7">
+            <div class="divcolored">
+
+              <div class="row">
+               <div class="col s3">
+                 <form action="" id="listusers">
+                 </form>
+               </div>
+
+               <div class="col s9" >
+                 <div class="row">
+                   <div class="col s12" >
+                    <ul id="messages"></ul>
+                    </div>
+                    <div class="col s11" >
+                    <form action="" id="inputmessage">
+                      <input id="m" autocomplete="off" placeholder="Tapez un message ..."/>
+                    </form>
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+          </div>
+        </div>
+
+        <div class="eraser">
+                <a class="btn-floating btn-large waves-effect waves-light black" ><i class="material-icons">clear</i></a>
+        </div>
+        <div class="fixed-action-btn vertical" id="palette">
+        <a class="btn-floating btn-large red waves-effect waves-light">
+          <i class="large material-icons">palette</i>
+        </a>
+        <ul class="colors" id="colors">
+          <li class="color red"></li>
+          <li class="color yellow"></li>
+          <li class="color green"></li>
+          <li class="color blue"></li>
+          <li class="color black"></li>
+        </ul>
+      </div>
+
+  </div>
+     <!--Permet d'inclure les imports pour jquery, materialize et js-->
+     <% include partials/js_import.ejs %>
+      <script src="/static/socket.js"></script>
+ </body>
+</html>

@@ -1,0 +1,973 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml" lang="fr">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Code &#8212; documentation WebSocket </title>
+    <link rel="stylesheet" href="_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <script type="text/javascript" src="_static/translations.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Recherche" href="search.html" />
+    <link rel="prev" title="Tutoriel : comment faire un chat sur Node.js avec Socket.io?" href="tuto.html" />
+   
+  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head>
+  <body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="code">
+<h1>Code<a class="headerlink" href="#code" title="Lien permanent vers ce titre">¶</a></h1>
+<div class="section" id="app-js">
+<h2>app.js<a class="headerlink" href="#app-js" title="Lien permanent vers ce titre">¶</a></h2>
+<div class="highlight-default"><div class="highlight"><pre><span></span>var express = require(&#39;express&#39;)
+var app = express()
+
+var http = require(&#39;http&#39;).Server(app);
+var io = require(&#39;socket.io&#39;)(http);
+
+// Pour utiliser ejs:
+app.set(&#39;view engine&#39;, &#39;ejs&#39;)
+// Pour accéder aux fichiers &#39;static&#39; comme les images:
+app.use(&quot;/static&quot;, express.static(__dirname + &#39;/assets&#39;))
+
+// On créé le chemin vers la page d&#39;accueil qui est home.ejs
+app.get(&#39;/&#39;, (request, response) =&gt; {
+    response.render(&quot;home&quot;)
+})
+
+// On créé le chemin vers l&#39;aide en ligne qui est websocketdemo.ejs
+app.get(&#39;/websocketdemo&#39;, (request, response) =&gt; {
+    response.render(&quot;websocketdemo&quot;)
+})
+
+// Si aucun des chemins précédents ne correspond, on envoie la page 404:
+app.use(function (req, res, next) {
+    res.status(404).render(&quot;404&quot;)
+})
+
+// Variables communes a tous les utilisateurs
+var dicostatus = {&quot;Tous&quot;: &quot;&quot;}; // Associe a un nom le statut (prof ou eleve)
+var dicosocket = {}; // Associe a un nom le socket associe a ce nom
+
+// Ecoute les évènements &#39;connection&#39; qui arrivent et affiche un message à la console
+io.on(&#39;connection&#39;, function(socket){
+  console.log(&#39;a user connected&#39;);
+  // Variable associee a chaque utilisateur
+  var name;
+
+  socket.on(&#39;chat message&#39;, function(obj){
+      if (name != undefined){ // En cas de deconnexion d&#39;internet, le &#39;name&#39; devient &#39;undefined&#39;, impossible de continuer avec ce nom donc on déconnecte l&#39;utilisateur dans le else.
+        if (obj.namedestination == &#39;Tous&#39;){ // Si le radio bouton &#39;Tous&#39; est selectionne
+          var myObj = { &quot;name&quot;: name, &quot;message&quot;:obj.privatemessage}; // On recupere le champ &#39;privatemessage&#39; de &#39;obj&#39; pour le renvoyer a tout le monde
+          console.log(name + &#39; : &#39; + obj.privatemessage);
+          // Quand on utilise &#39;io.emit&#39; c&#39;est pour envoyer a tout le monde (inclus celui qui envoie)
+          io.emit(&#39;chat message&#39;, myObj);
+        }else{ // Dans le cas ou on veut parler a une personne en particulier
+          var myObj = {&quot;nameemetteur&quot;: name, &quot;namedestination&quot;:obj.namedestination, &quot;message&quot;:obj.privatemessage};
+          console.log(name + &#39; a &#39;+ obj.namedestination + &#39; : &#39; + obj.privatemessage);
+          if(obj.namedestination in dicosocket){ // Si le nom de la personne a qui on veut envoyer le message est bien dans notre dictionnaire (si elle ne s&#39;est pas deconnectee entre temps)
+            dicosocket[obj.namedestination].emit(&#39;private message&#39;, myObj); // On recupere le socket de la personne pour lui envoyer un message individuellement grace à dicosocket : ca n&#39;envoie le message qu&#39;a la personne
+            socket.emit(&#39;private message&#39;, myObj); // On s&#39;envoie aussi le message qu&#39;a nous grace a &#39;socket.emit&#39;
+          }else{
+            console.log(&quot;Message de&quot; + name + &#39; a &#39;+ obj.namedestination + &quot; non envoyé!&quot;);
+          }
+        }
+      }else{
+        socket.disconnect(); // On deconnecte la personne si on perd son nom
+      }
+
+    });
+
+
+    socket.on(&#39;drawing&#39;, function(data) { // Fonctionne de la meme facon que socket.on(&#39;chat message&#39; ...
+      if (name != undefined){
+        if (data.dest == &#39;Tous&#39;){
+          io.emit(&#39;drawing&#39;, data);
+        }else{
+          if(data.dest in dicosocket){
+            dicosocket[data.dest].emit(&#39;drawing&#39;, data);
+            socket.emit(&#39;drawing&#39;, data);
+          }else{
+            console.log(&quot;Message de&quot; + name + &#39; a &#39;+ data.namedestination + &quot; non envoyé!&quot;);
+          }
+        }
+      }else{
+        socket.disconnect();
+      }
+      });
+
+
+  socket.on(&#39;user name&#39;, function(msg){// Quand une personne est sur l&#39;ecran de connexion
+      var name_existing = false; // On ne veut pas lui redonner le meme pseudo qu&#39;une personne deja connectee
+      for (var i in dicostatus){
+        if (i == msg.name){ // Si le nom existe deja
+          // socket.emit : on envoie qu&#39;a celui qui envoie
+          socket.emit(&#39;wrong name&#39;, name); // On signale a socket.js que ce nom existe deja
+          name_existing = true;}
+      }
+      if (!name_existing){ // Si le nom n&#39;existe pas
+          name = msg.name; // On attribue a la variable &#39;name&#39; le nom que la personne a choisi
+          dicostatus[name] = msg.status; // On met le statut qu&#39;elle a indique dans le dicostatus
+          dicosocket[name] = socket; // On rajoute son socket dans le dicosocket pour que les gens puissent s&#39;addresser a elle en privee
+          console.log(&#39;user name: &#39; + name +&#39; (&#39; + msg.status +  &#39;)&#39;);
+          //on envoie qu&#39;a celui qui envoie
+          socket.emit(&#39;username available&#39;, name); // On signale que le nom est bon
+          // envoyer a tous sauf celui qui envoie
+          socket.broadcast.emit(&#39;user connect&#39;, name); // On diffuse le message a tout le monde (sauf a nous grace au .broadcast) que nous nous sommes connecte
+          // io : pour envoyer a tout le monde inclus celui qui envoie
+          io.emit(&#39;user list&#39;, dicostatus); // Pour reactualiser la liste des gens connectes
+      }
+      });
+
+  socket.on(&#39;disconnect&#39;, function(){ // A la deconnexion d&#39;un utilisateur
+    console.log(name + &#39; disconnected&#39;);
+    delete dicosocket[name]; // On supprime la personne des dictionnaires
+    delete dicostatus[name];
+    io.emit(&#39;user list&#39;, dicostatus); // On met a jour la liste des gens connectes
+    if (name != null){
+      socket.broadcast.emit(&#39;user disconnect&#39;, name); // On signale a tout le monde que cette personne s&#39;est deconnectee
+    }
+
+  });
+});
+
+
+port = 3000
+http.listen(port, function() {
+  console.log(&quot;Listening on: http://localhost:&quot; + port.toString())
+})
+</pre></div>
+</div>
+</div>
+<div class="section" id="package-json-a-la-source-du-projet">
+<h2>package.json (à la source du projet)<a class="headerlink" href="#package-json-a-la-source-du-projet" title="Lien permanent vers ce titre">¶</a></h2>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="p">{</span>
+  <span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;web&quot;</span><span class="p">,</span>
+  <span class="s2">&quot;version&quot;</span><span class="p">:</span> <span class="s2">&quot;1.0.0&quot;</span><span class="p">,</span>
+  <span class="s2">&quot;description&quot;</span><span class="p">:</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
+  <span class="s2">&quot;main&quot;</span><span class="p">:</span> <span class="s2">&quot;app.js&quot;</span><span class="p">,</span>
+  <span class="s2">&quot;scripts&quot;</span><span class="p">:</span> <span class="p">{</span>
+    <span class="s2">&quot;test&quot;</span><span class="p">:</span> <span class="s2">&quot;echo </span><span class="se">\&quot;</span><span class="s2">Error: no test specified</span><span class="se">\&quot;</span><span class="s2"> &amp;&amp; exit 1&quot;</span>
+  <span class="p">},</span>
+  <span class="s2">&quot;repository&quot;</span><span class="p">:</span> <span class="p">{</span>
+    <span class="s2">&quot;type&quot;</span><span class="p">:</span> <span class="s2">&quot;git&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;url&quot;</span><span class="p">:</span> <span class="s2">&quot;git+https://marion_puggioni@bitbucket.org/marie_marion/web.git&quot;</span>
+  <span class="p">},</span>
+  <span class="s2">&quot;author&quot;</span><span class="p">:</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
+  <span class="s2">&quot;license&quot;</span><span class="p">:</span> <span class="s2">&quot;ISC&quot;</span><span class="p">,</span>
+  <span class="s2">&quot;homepage&quot;</span><span class="p">:</span> <span class="s2">&quot;https://bitbucket.org/marie_marion/web#readme&quot;</span><span class="p">,</span>
+  <span class="s2">&quot;dependencies&quot;</span><span class="p">:</span> <span class="p">{</span>
+    <span class="s2">&quot;ejs&quot;</span><span class="p">:</span> <span class="s2">&quot;^2.5.7&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;express&quot;</span><span class="p">:</span> <span class="s2">&quot;^4.16.2&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;socket.io&quot;</span><span class="p">:</span> <span class="s2">&quot;^2.0.4&quot;</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="websocketdemo-ejs">
+<h2>websocketdemo.ejs<a class="headerlink" href="#websocketdemo-ejs" title="Lien permanent vers ce titre">¶</a></h2>
+<div class="highlight-default"><div class="highlight"><pre><span></span>&lt;html&gt;
+
+ &lt;head&gt;
+     &lt;meta charset=&quot;utf-8&quot; /&gt;
+     &lt;title&gt;Aide en ligne&lt;/title&gt;
+     &lt;!--Permet d&#39;inclure les imports pour la police, materialize et css--&gt;
+     &lt;% include partials/header_imports.ejs %&gt;
+
+ &lt;/head&gt;
+ &lt;body&gt;
+     &lt;!--Permet d&#39;inclure le menu--&gt;
+     &lt;canvas class=&quot;whiteboard&quot; id= &quot;whiteboard&quot; &gt;&lt;/canvas&gt;
+    &lt;% include partials/navbar.ejs %&gt;
+
+  &lt;div class=&quot;row&quot; id=&quot;screen1&quot;&gt;
+      &lt;div class=&quot;image&quot;&gt;
+        &lt;div class=&quot;col s4 offset-s4&quot; id=&quot;formulaire&quot;&gt;
+         &lt;p&gt; Bienvenue sur l&#39;aide en ligne! &lt;p&gt;
+         &lt;/br&gt;
+         &lt;form action=&quot;&quot; id=&quot;inputname&quot;&gt;
+                &lt;p&gt;
+                  &lt;input name=&quot;group1&quot; type=&quot;radio&quot; id=&quot;e&quot; required=&quot;required&quot; value=&quot;eleve&quot;/&gt;
+                  &lt;label for=&quot;e&quot;&gt;Eleve&lt;/label&gt;
+                &lt;/p&gt;
+                &lt;p&gt;
+                  &lt;input name=&quot;group1&quot; type=&quot;radio&quot; id=&quot;p&quot; required=&quot;required&quot; value=&quot;prof&quot;/&gt;
+                  &lt;label for=&quot;p&quot;&gt;Prof&lt;/label&gt;
+               &lt;/p&gt;
+               &lt;/br&gt;
+                  &lt;input id=&quot;mbis&quot; autocomplete=&quot;off&quot; placeholder=&quot;Entrez un pseudo!&quot; required=&quot;required&quot; /&gt;
+               &lt;/br&gt;&lt;/br&gt;
+                  &lt;button type=&quot;submit&quot; class=&quot;waves-effect waves-light btn green darken-2&quot; id=&quot;submitbutton&quot;&gt; Entrer &lt;/button&gt;
+          &lt;/form&gt;
+        &lt;/div&gt;
+      &lt;/div&gt;
+  &lt;/div&gt;
+
+  &lt;div class=&quot;row&quot; id=&quot;screen2&quot;&gt;
+
+        &lt;div class=&quot;col s7&quot;&gt;
+            &lt;div class=&quot;divcolored&quot;&gt;
+
+              &lt;div class=&quot;row&quot;&gt;
+               &lt;div class=&quot;col s3&quot;&gt;
+                 &lt;form action=&quot;&quot; id=&quot;listusers&quot;&gt;
+                 &lt;/form&gt;
+               &lt;/div&gt;
+
+               &lt;div class=&quot;col s9&quot; &gt;
+                 &lt;div class=&quot;row&quot;&gt;
+                   &lt;div class=&quot;col s12&quot; &gt;
+                    &lt;ul id=&quot;messages&quot;&gt;&lt;/ul&gt;
+                    &lt;/div&gt;
+                    &lt;div class=&quot;col s11&quot; &gt;
+                    &lt;form action=&quot;&quot; id=&quot;inputmessage&quot;&gt;
+                      &lt;input id=&quot;m&quot; autocomplete=&quot;off&quot; placeholder=&quot;Tapez un message ...&quot;/&gt;
+                    &lt;/form&gt;
+                    &lt;/div&gt;
+                  &lt;/div&gt;
+                &lt;/div&gt;
+
+              &lt;/div&gt;
+          &lt;/div&gt;
+        &lt;/div&gt;
+
+        &lt;div class=&quot;eraser&quot;&gt;
+                &lt;a class=&quot;btn-floating btn-large waves-effect waves-light black&quot; &gt;&lt;i class=&quot;material-icons&quot;&gt;clear&lt;/i&gt;&lt;/a&gt;
+        &lt;/div&gt;
+        &lt;div class=&quot;fixed-action-btn vertical&quot; id=&quot;palette&quot;&gt;
+        &lt;a class=&quot;btn-floating btn-large red waves-effect waves-light&quot;&gt;
+          &lt;i class=&quot;large material-icons&quot;&gt;palette&lt;/i&gt;
+        &lt;/a&gt;
+        &lt;ul class=&quot;colors&quot; id=&quot;colors&quot;&gt;
+          &lt;li class=&quot;color red&quot;&gt;&lt;/li&gt;
+          &lt;li class=&quot;color yellow&quot;&gt;&lt;/li&gt;
+          &lt;li class=&quot;color green&quot;&gt;&lt;/li&gt;
+          &lt;li class=&quot;color blue&quot;&gt;&lt;/li&gt;
+          &lt;li class=&quot;color black&quot;&gt;&lt;/li&gt;
+        &lt;/ul&gt;
+      &lt;/div&gt;
+
+  &lt;/div&gt;
+     &lt;!--Permet d&#39;inclure les imports pour jquery, materialize et js--&gt;
+     &lt;% include partials/js_import.ejs %&gt;
+      &lt;script src=&quot;/static/socket.js&quot;&gt;&lt;/script&gt;
+ &lt;/body&gt;
+&lt;/html&gt;
+</pre></div>
+</div>
+</div>
+<div class="section" id="home-ejs">
+<h2>home.ejs<a class="headerlink" href="#home-ejs" title="Lien permanent vers ce titre">¶</a></h2>
+<div class="highlight-default"><div class="highlight"><pre><span></span>&lt;html&gt;
+
+ &lt;head&gt;
+     &lt;meta charset=&quot;utf-8&quot; /&gt;
+     &lt;title&gt;Maths en ligne&lt;/title&gt;
+     &lt;!--Permet d&#39;inclure les imports pour la police, materialize et css--&gt;
+     &lt;% include partials/header_imports.ejs %&gt;
+
+ &lt;/head&gt;
+ &lt;body&gt;
+     &lt;!--Permet d&#39;inclure le menu--&gt;
+     &lt;% include partials/navbar.ejs %&gt;
+
+       &lt;div id=&quot;fond_home&quot;&gt;
+         &lt;div class=&quot;container&quot;&gt;
+           &lt;h1 class=&quot;header&quot;&gt;Bienvenue!&lt;/h1&gt;
+           &lt;h5 class=&quot;grey-text text-darken-3 lighten-3&quot;&gt;Besoin d&#39;un coup de main en maths? Sur ce site vous pouvez bénéficier de cours et d&#39;explications en ligne!&lt;/h5&gt;
+           &lt;/br&gt;&lt;/br&gt;
+
+         &lt;div class=&quot;row&quot; &gt;
+           &lt;div class=&quot;col l4 m12 s12&quot;&gt;
+             &lt;div class=&quot;row&quot;&gt;
+               &lt;div class=&quot;col s12&quot; style=&quot;text-align:center&quot;&gt;
+                 &lt;i class=&quot;material-icons&quot; style=&quot;font-size: 150px&quot;&gt;lightbulb_outline&lt;/i&gt;
+               &lt;/div&gt;
+               &lt;div class=&quot;col s12&quot; style=&quot;text-align:center&quot;&gt;
+                 &lt;h4&gt;Pratique:&lt;/h4&gt; Tous vos cours expliqués avec des exercices corrigés!
+               &lt;/div&gt;
+            &lt;/div&gt;
+          &lt;/div&gt;
+          &lt;div class=&quot;col l4 m12 s12&quot;&gt;
+            &lt;div class=&quot;row&quot;&gt;
+              &lt;div class=&quot;col s12&quot; style=&quot;text-align:center&quot;&gt;
+                &lt;i class=&quot;material-icons&quot; style=&quot;font-size: 150px&quot;&gt;person&lt;/i&gt;
+              &lt;/div&gt;
+              &lt;div class=&quot;col s12&quot; style=&quot;text-align:center&quot;&gt;
+                &lt;h4&gt;Personnalisé: &lt;/h4&gt; Avec l&#39;aide en ligne, tu pourras directement poser tes questions!
+              &lt;/div&gt;
+           &lt;/div&gt;
+         &lt;/div&gt;
+         &lt;div class=&quot;col l4 m12 s12&quot;&gt;
+           &lt;div class=&quot;row&quot;&gt;
+             &lt;div class=&quot;col s12&quot; style=&quot;text-align:center&quot;&gt;
+               &lt;i class=&quot;material-icons&quot; style=&quot;font-size: 150px&quot;&gt;computer&lt;/i&gt;
+             &lt;/div&gt;
+             &lt;div class=&quot;col s12&quot; style=&quot;text-align:center&quot;&gt;
+              &lt;h4&gt;En ligne: &lt;/h4&gt; Tu peux travailler facilement depuis l&#39;école ou la maison!
+             &lt;/div&gt;
+           &lt;/div&gt;
+        &lt;/div&gt;
+      &lt;/div&gt;
+
+        &lt;/br&gt;&lt;/br&gt;&lt;/br&gt;&lt;/br&gt;&lt;/br&gt;
+
+  &lt;/div&gt;
+&lt;/div&gt;
+
+&lt;div class=&quot;section white&quot; id=&quot;footer&quot;&gt;
+    &lt;p class=&quot;grey-text text-darken-3 lighten-3&quot;&gt;Projet WEB 3A - WEBSOCKET - Marie LECAM &amp; Marion PUGGIONI&lt;/p&gt;
+&lt;/div&gt;
+
+     &lt;!--Permet d&#39;inclure les imports pour jquery, materialize et js--&gt;
+     &lt;% include partials/js_import.ejs %&gt;
+ &lt;/body&gt;
+ &lt;/html&gt;
+</pre></div>
+</div>
+</div>
+<div class="section" id="ejs">
+<h2>404.ejs<a class="headerlink" href="#ejs" title="Lien permanent vers ce titre">¶</a></h2>
+<div class="highlight-default"><div class="highlight"><pre><span></span>&lt;html&gt;
+      &lt;head&gt;
+          &lt;meta charset=&quot;utf-8&quot; /&gt;
+          &lt;title&gt;404&lt;/title&gt;
+          &lt;link rel=&quot;stylesheet&quot; type=&quot;text/css&quot; href=&quot;/static/main.css&quot;&gt;
+      &lt;/head&gt;
+
+      &lt;body&gt;
+          &lt;h1&gt; Page 404 !&lt;/h1&gt;
+      &lt;/body&gt;
+&lt;/html&gt;
+</pre></div>
+</div>
+</div>
+<div class="section" id="navbar-ejs">
+<h2>navbar.ejs<a class="headerlink" href="#navbar-ejs" title="Lien permanent vers ce titre">¶</a></h2>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="o">&lt;</span><span class="n">header</span><span class="o">&gt;</span>
+    <span class="o">&lt;</span><span class="n">div</span> <span class="n">class</span><span class="o">=</span><span class="s2">&quot;navbar-fixed &quot;</span><span class="o">&gt;</span>
+        <span class="o">&lt;</span><span class="n">nav</span><span class="o">&gt;</span>
+            <span class="o">&lt;</span><span class="n">div</span> <span class="n">class</span><span class="o">=</span><span class="s2">&quot;nav-wrapper&quot;</span><span class="o">&gt;</span>
+                <span class="o">&lt;</span><span class="n">a</span> <span class="n">href</span><span class="o">=</span><span class="s2">&quot;#&quot;</span> <span class="n">data</span><span class="o">-</span><span class="n">activates</span><span class="o">=</span><span class="s2">&quot;mobile-demo&quot;</span> <span class="n">class</span><span class="o">=</span><span class="s2">&quot;button-collapse&quot;</span><span class="o">&gt;&lt;</span><span class="n">i</span> <span class="n">class</span><span class="o">=</span><span class="s2">&quot;material-icons&quot;</span><span class="o">&gt;</span><span class="n">menu</span><span class="o">&lt;/</span><span class="n">i</span><span class="o">&gt;&lt;/</span><span class="n">a</span><span class="o">&gt;</span>
+                <span class="o">&lt;</span><span class="n">ul</span> <span class="n">class</span><span class="o">=</span><span class="s2">&quot;left hide-on-med-and-down&quot;</span><span class="o">&gt;</span>
+                    <span class="o">&lt;</span><span class="n">li</span><span class="o">&gt;&lt;</span><span class="n">a</span> <span class="n">href</span><span class="o">=</span><span class="s2">&quot;/&quot;</span> <span class="n">class</span><span class="o">=</span><span class="s2">&quot;brand-logo&quot;</span> <span class="n">style</span><span class="o">=</span><span class="s2">&quot;&quot;</span><span class="o">&gt;</span><span class="n">Maths</span> <span class="n">en</span> <span class="n">ligne</span><span class="p">(</span><span class="n">s</span><span class="p">)</span><span class="o">&lt;/</span><span class="n">a</span><span class="o">&gt;&lt;/</span><span class="n">li</span><span class="o">&gt;</span>
+                <span class="o">&lt;/</span><span class="n">ul</span><span class="o">&gt;</span>
+                <span class="o">&lt;</span><span class="n">ul</span> <span class="n">class</span><span class="o">=</span><span class="s2">&quot;right hide-on-med-and-down&quot;</span><span class="o">&gt;</span>
+                    <span class="o">&lt;</span><span class="n">li</span><span class="o">&gt;&lt;</span><span class="n">a</span> <span class="n">href</span><span class="o">=</span><span class="s2">&quot;#&quot;</span><span class="o">&gt;</span><span class="n">Cours</span><span class="o">&lt;/</span><span class="n">a</span><span class="o">&gt;&lt;/</span><span class="n">li</span><span class="o">&gt;</span>
+                    <span class="o">&lt;</span><span class="n">li</span><span class="o">&gt;&lt;</span><span class="n">a</span> <span class="n">href</span><span class="o">=</span><span class="s2">&quot;/websocketdemo&quot;</span><span class="o">&gt;</span><span class="n">Aide</span> <span class="n">en</span> <span class="n">ligne</span><span class="o">&lt;/</span><span class="n">a</span><span class="o">&gt;&lt;/</span><span class="n">li</span><span class="o">&gt;</span>
+                <span class="o">&lt;/</span><span class="n">ul</span><span class="o">&gt;</span>
+            <span class="o">&lt;/</span><span class="n">div</span><span class="o">&gt;</span>
+        <span class="o">&lt;/</span><span class="n">nav</span><span class="o">&gt;</span>
+    <span class="o">&lt;/</span><span class="n">div</span><span class="o">&gt;</span>
+    <span class="o">&lt;</span><span class="n">ul</span> <span class="n">class</span><span class="o">=</span><span class="s2">&quot;side-nav&quot;</span> <span class="nb">id</span><span class="o">=</span><span class="s2">&quot;mobile-demo&quot;</span><span class="o">&gt;</span>
+      <span class="o">&lt;</span><span class="n">li</span><span class="o">&gt;&lt;</span><span class="n">a</span> <span class="n">href</span><span class="o">=</span><span class="s2">&quot;/&quot;</span> <span class="n">class</span><span class="o">=</span><span class="s2">&quot;brand-logo&quot;</span> <span class="n">style</span><span class="o">=</span><span class="s2">&quot;&quot;</span><span class="o">&gt;</span><span class="n">Maths</span> <span class="n">en</span> <span class="n">ligne</span><span class="p">(</span><span class="n">s</span><span class="p">)</span><span class="o">&lt;/</span><span class="n">a</span><span class="o">&gt;&lt;/</span><span class="n">li</span><span class="o">&gt;</span>
+      <span class="o">&lt;</span><span class="n">li</span><span class="o">&gt;&lt;</span><span class="n">a</span> <span class="n">href</span><span class="o">=</span><span class="s2">&quot;#&quot;</span><span class="o">&gt;</span><span class="n">Cours</span><span class="o">&lt;/</span><span class="n">a</span><span class="o">&gt;&lt;/</span><span class="n">li</span><span class="o">&gt;</span>
+      <span class="o">&lt;</span><span class="n">li</span><span class="o">&gt;&lt;</span><span class="n">a</span> <span class="n">href</span><span class="o">=</span><span class="s2">&quot;/websocketdemo&quot;</span><span class="o">&gt;</span><span class="n">Aide</span> <span class="n">en</span> <span class="n">ligne</span><span class="o">&lt;/</span><span class="n">a</span><span class="o">&gt;&lt;/</span><span class="n">li</span><span class="o">&gt;</span>
+    <span class="o">&lt;/</span><span class="n">ul</span><span class="o">&gt;</span>
+<span class="o">&lt;/</span><span class="n">header</span><span class="o">&gt;</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="js-import-ejs">
+<h2>js_import.ejs<a class="headerlink" href="#js-import-ejs" title="Lien permanent vers ce titre">¶</a></h2>
+<div class="highlight-default"><div class="highlight"><pre><span></span>&lt;!-- Attention à respecter l&#39;ordre d&#39;appel des imports! --&gt;
+&lt;script src=&quot;https://ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js&quot;&gt;&lt;/script&gt;
+&lt;script src=&quot;https://code.jquery.com/jquery-1.11.1.js&quot;&gt;&lt;/script&gt;
+&lt;script type=&quot;text/javascript&quot; src=&quot;/static/node_modules/jquery/dist/jquery.min.js&quot;&gt;&lt;/script&gt;
+&lt;script type=&quot;text/javascript&quot; src=&quot;/static/node_modules/materialize-css/dist/js/materialize.min.js&quot;&gt;&lt;/script&gt;
+&lt;script src=&quot;/socket.io/socket.io.js&quot;&gt;&lt;/script&gt;
+&lt;script src=&quot;/static/javascript.js&quot;&gt;&lt;/script&gt;
+</pre></div>
+</div>
+</div>
+<div class="section" id="header-imports-ejs">
+<h2>header_imports.ejs<a class="headerlink" href="#header-imports-ejs" title="Lien permanent vers ce titre">¶</a></h2>
+<div class="highlight-default"><div class="highlight"><pre><span></span>&lt;!-- Attention à respecter l&#39;ordre d&#39;appel des imports! --&gt;
+&lt;link href=&quot;https://fonts.googleapis.com/icon?family=Material+Icons&quot; rel=&quot;stylesheet&quot;&gt;
+&lt;link type=&quot;text/css&quot; rel=&quot;stylesheet&quot; href=&quot;/static/node_modules/materialize-css/dist/css/materialize.min.css&quot; media=&quot;screen,projection&quot;/&gt;
+&lt;link rel=&quot;stylesheet&quot; type=&quot;text/css&quot; href=&quot;/static/main.css&quot;&gt;
+</pre></div>
+</div>
+</div>
+<div class="section" id="javascript-js">
+<h2>javascript.js<a class="headerlink" href="#javascript-js" title="Lien permanent vers ce titre">¶</a></h2>
+<div class="highlight-default"><div class="highlight"><pre><span></span>// pour le menu sur le cote
+jQuery( document ).ready(function($){
+$(&#39;.button-collapse&#39;).sideNav({
+      closeOnClick: true
+    }
+  );
+
+// pour les radio buttons
+$(&#39;select&#39;).material_select();
+
+// pour l&#39;effet parallax sur la page home
+$(&#39;.parallax&#39;).parallax();
+});
+</pre></div>
+</div>
+</div>
+<div class="section" id="main-css">
+<h2>main.css<a class="headerlink" href="#main-css" title="Lien permanent vers ce titre">¶</a></h2>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">html</span><span class="p">{</span>
+  <span class="nb">min</span><span class="o">-</span><span class="n">height</span><span class="p">:</span> <span class="mi">100</span><span class="o">%</span><span class="p">;</span>
+  <span class="n">position</span><span class="p">:</span> <span class="n">relative</span><span class="p">;</span>
+<span class="p">}</span>
+<span class="n">body</span><span class="p">{</span>
+  <span class="n">margin</span><span class="p">:</span><span class="mi">0</span><span class="n">px</span><span class="p">;</span>
+  <span class="n">padding</span><span class="p">:</span><span class="mi">0</span><span class="n">px</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="n">div</span><span class="p">{</span>
+  <span class="n">margin</span><span class="p">:</span><span class="mi">0</span><span class="n">px</span><span class="p">;</span>
+  <span class="n">padding</span><span class="p">:</span><span class="mi">0</span><span class="n">px</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="n">h1</span><span class="p">{</span>
+  <span class="n">margin</span><span class="o">-</span><span class="n">top</span><span class="p">:</span><span class="mi">0</span><span class="n">px</span><span class="p">;</span>
+  <span class="n">padding</span><span class="o">-</span><span class="n">top</span><span class="p">:</span> <span class="mi">80</span><span class="n">px</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="o">/**</span>
+ <span class="o">*</span> <span class="n">Accueil</span>
+ <span class="o">*/</span>
+
+<span class="c1">#fond_home{</span>
+  <span class="n">position</span><span class="p">:</span><span class="n">relative</span><span class="p">;</span>
+  <span class="n">width</span><span class="p">:</span><span class="mi">100</span><span class="o">%</span><span class="p">;</span>
+  <span class="nb">min</span><span class="o">-</span><span class="n">height</span><span class="p">:</span><span class="mi">90</span><span class="o">%</span><span class="p">;</span>
+  <span class="n">margin</span><span class="p">:</span><span class="mi">0</span><span class="p">;</span>
+  <span class="n">padding</span><span class="p">:</span><span class="mi">0</span><span class="p">;</span>
+  <span class="n">background</span><span class="o">-</span><span class="n">image</span><span class="p">:</span><span class="n">url</span><span class="p">(</span><span class="s1">&#39;images/books_opacity.jpg&#39;</span><span class="p">);</span>
+  <span class="n">background</span><span class="o">-</span><span class="n">position</span><span class="p">:</span> <span class="n">center</span> <span class="n">center</span><span class="p">;</span>
+  <span class="n">background</span><span class="o">-</span><span class="n">repeat</span><span class="p">:</span> <span class="n">no</span><span class="o">-</span><span class="n">repeat</span><span class="p">;</span>
+  <span class="n">background</span><span class="o">-</span><span class="n">attachment</span><span class="p">:</span> <span class="n">fixed</span><span class="p">;</span>
+  <span class="n">background</span><span class="o">-</span><span class="n">size</span><span class="p">:</span> <span class="n">cover</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="c1">#footer{</span>
+  <span class="n">padding</span><span class="p">:</span> <span class="mi">0</span><span class="n">px</span><span class="p">;</span>
+  <span class="n">position</span><span class="p">:</span> <span class="n">absolute</span><span class="p">;</span>
+  <span class="n">left</span><span class="p">:</span> <span class="mi">0</span><span class="p">;</span>
+  <span class="n">bottom</span><span class="p">:</span> <span class="mi">0</span><span class="p">;</span>
+  <span class="n">height</span><span class="p">:</span> <span class="mi">50</span><span class="n">px</span><span class="p">;</span>
+  <span class="n">width</span><span class="p">:</span> <span class="mi">100</span><span class="o">%</span><span class="p">;</span>
+  <span class="n">overflow</span><span class="p">:</span><span class="n">hidden</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="o">/**</span>
+<span class="o">*</span><span class="n">Formulaire</span>
+<span class="o">*/</span>
+
+<span class="c1">#formulaire{</span>
+  <span class="n">border</span><span class="p">:</span> <span class="n">solid</span> <span class="mi">1</span><span class="n">px</span><span class="p">;</span>
+  <span class="n">border</span><span class="o">-</span><span class="n">color</span><span class="p">:</span> <span class="n">grey</span><span class="p">;</span>
+  <span class="n">border</span><span class="o">-</span><span class="n">radius</span><span class="p">:</span> <span class="mi">3</span><span class="n">px</span><span class="p">;</span>
+  <span class="n">width</span><span class="p">:</span> <span class="mi">400</span><span class="n">px</span><span class="p">;</span>
+  <span class="n">height</span><span class="p">:</span> <span class="mi">325</span><span class="n">px</span><span class="p">;</span>
+
+  <span class="n">position</span><span class="p">:</span> <span class="n">absolute</span><span class="p">;</span>
+  <span class="n">top</span><span class="p">:</span><span class="mi">0</span><span class="p">;</span>
+  <span class="n">bottom</span><span class="p">:</span> <span class="mi">0</span><span class="p">;</span>
+  <span class="n">left</span><span class="p">:</span> <span class="mi">0</span><span class="p">;</span>
+  <span class="n">right</span><span class="p">:</span> <span class="mi">0</span><span class="p">;</span>
+
+  <span class="n">margin</span><span class="p">:</span> <span class="n">auto</span><span class="p">;</span>
+
+  <span class="n">background</span><span class="o">-</span><span class="n">color</span><span class="p">:</span> <span class="n">white</span><span class="p">;</span>
+  <span class="n">text</span><span class="o">-</span><span class="n">align</span><span class="p">:</span> <span class="n">center</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="c1">#submitbutton{</span>
+  <span class="nb">float</span><span class="p">:</span> <span class="n">right</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="o">.</span><span class="n">image</span><span class="p">{</span>
+  <span class="n">position</span><span class="p">:</span><span class="n">fixed</span><span class="p">;</span>
+  <span class="n">width</span><span class="p">:</span><span class="mi">100</span><span class="o">%</span><span class="p">;</span>
+  <span class="n">height</span><span class="p">:</span><span class="mi">100</span><span class="o">%</span><span class="p">;</span>
+  <span class="n">margin</span><span class="p">:</span><span class="mi">0</span><span class="p">;</span>
+  <span class="n">padding</span><span class="p">:</span><span class="mi">0</span><span class="p">;</span>
+  <span class="n">background</span><span class="o">-</span><span class="n">image</span><span class="p">:</span><span class="n">url</span><span class="p">(</span><span class="s1">&#39;images/online.jpg&#39;</span><span class="p">);</span>
+  <span class="n">background</span><span class="o">-</span><span class="n">position</span><span class="p">:</span> <span class="n">center</span> <span class="n">center</span><span class="p">;</span>
+  <span class="n">background</span><span class="o">-</span><span class="n">repeat</span><span class="p">:</span> <span class="n">no</span><span class="o">-</span><span class="n">repeat</span><span class="p">;</span>
+  <span class="n">background</span><span class="o">-</span><span class="n">attachment</span><span class="p">:</span> <span class="n">fixed</span><span class="p">;</span>
+  <span class="n">background</span><span class="o">-</span><span class="n">size</span><span class="p">:</span> <span class="n">cover</span><span class="p">;</span>
+
+<span class="p">}</span>
+
+<span class="o">/**</span>
+<span class="o">*</span><span class="n">Chat</span>
+<span class="o">*/</span>
+
+<span class="c1">#inputmessage{</span>
+<span class="p">}</span>
+
+<span class="c1">#m{</span>
+  <span class="n">width</span><span class="p">:</span> <span class="mi">100</span><span class="o">%</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="c1">#messages {</span>
+  <span class="nb">list</span><span class="o">-</span><span class="n">style</span><span class="o">-</span><span class="nb">type</span><span class="p">:</span> <span class="n">none</span><span class="p">;</span>
+  <span class="n">height</span><span class="p">:</span> <span class="mi">80</span><span class="o">%</span><span class="p">;</span>
+  <span class="n">overflow</span><span class="p">:</span> <span class="n">auto</span><span class="p">;</span>
+  <span class="n">word</span><span class="o">-</span><span class="n">wrap</span><span class="p">:</span> <span class="k">break</span><span class="o">-</span><span class="n">word</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="c1">#messages li { padding: 5px 10px; }</span>
+
+<span class="o">.</span><span class="n">divcolored</span><span class="p">{</span>
+  <span class="n">height</span><span class="p">:</span> <span class="mi">85</span><span class="o">%</span><span class="p">;</span>
+  <span class="n">border</span><span class="p">:</span> <span class="n">solid</span> <span class="mi">1</span><span class="n">px</span> <span class="n">grey</span><span class="p">;</span>
+  <span class="n">border</span><span class="o">-</span><span class="n">radius</span><span class="p">:</span> <span class="mi">3</span><span class="n">px</span><span class="p">;</span>
+  <span class="n">background</span><span class="o">-</span><span class="n">color</span><span class="p">:</span><span class="n">white</span><span class="p">;</span>
+  <span class="n">position</span><span class="p">:</span> <span class="n">relative</span><span class="p">;</span>
+<span class="p">}</span>
+
+
+<span class="o">/**</span>
+<span class="o">*</span><span class="n">Utilisateurs</span>
+<span class="o">*/</span>
+
+<span class="c1">#listusers{</span>
+  <span class="n">margin</span><span class="o">-</span><span class="n">top</span><span class="p">:</span> <span class="mi">0</span><span class="n">px</span><span class="p">;</span>
+  <span class="n">height</span><span class="p">:</span> <span class="mi">100</span><span class="o">%</span><span class="p">;</span>
+  <span class="n">overflow</span><span class="o">-</span><span class="n">y</span><span class="p">:</span> <span class="n">auto</span><span class="p">;</span>
+  <span class="n">overflow</span><span class="o">-</span><span class="n">x</span><span class="p">:</span> <span class="n">hidden</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="o">.</span><span class="n">chip</span><span class="p">{</span>
+  <span class="n">overflow</span><span class="p">:</span> <span class="n">hidden</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="o">/**</span>
+<span class="o">*</span><span class="n">Bouton</span><span class="p">,</span> <span class="n">radio</span> <span class="n">button</span><span class="p">,</span> <span class="nb">input</span> <span class="n">field</span>
+<span class="o">*/</span>
+
+<span class="n">button</span><span class="p">{</span>
+  <span class="n">background</span><span class="o">-</span><span class="n">color</span><span class="p">:</span> <span class="c1">#388e3c;</span>
+<span class="p">}</span>
+
+<span class="p">[</span><span class="nb">type</span><span class="o">=</span><span class="s2">&quot;radio&quot;</span><span class="p">]:</span><span class="n">checked</span><span class="o">+</span><span class="n">label</span><span class="p">:</span><span class="n">after</span><span class="p">,</span> <span class="p">[</span><span class="nb">type</span><span class="o">=</span><span class="s2">&quot;radio&quot;</span><span class="p">]</span><span class="o">.</span><span class="k">with</span><span class="o">-</span><span class="n">gap</span><span class="p">:</span><span class="n">checked</span><span class="o">+</span><span class="n">label</span><span class="p">:</span><span class="n">after</span><span class="p">{</span>
+  <span class="n">background</span><span class="o">-</span><span class="n">color</span><span class="p">:</span> <span class="c1">#388e3c;</span>
+<span class="p">}</span>
+
+<span class="p">[</span><span class="nb">type</span><span class="o">=</span><span class="s2">&quot;radio&quot;</span><span class="p">]:</span><span class="n">checked</span><span class="o">+</span><span class="n">label</span><span class="p">:</span><span class="n">after</span><span class="p">,</span> <span class="p">[</span><span class="nb">type</span><span class="o">=</span><span class="s2">&quot;radio&quot;</span><span class="p">]</span><span class="o">.</span><span class="k">with</span><span class="o">-</span><span class="n">gap</span><span class="p">:</span><span class="n">checked</span><span class="o">+</span><span class="n">label</span><span class="p">:</span><span class="n">before</span><span class="p">,</span> <span class="p">[</span><span class="nb">type</span><span class="o">=</span><span class="s2">&quot;radio&quot;</span><span class="p">]</span><span class="o">.</span><span class="k">with</span><span class="o">-</span><span class="n">gap</span><span class="p">:</span><span class="n">checked</span><span class="o">+</span><span class="n">label</span><span class="p">:</span><span class="n">after</span><span class="p">{</span>
+  <span class="n">background</span><span class="o">-</span><span class="n">color</span><span class="p">:</span> <span class="c1">#388e3c;</span>
+<span class="p">}</span>
+
+<span class="p">[</span><span class="nb">type</span><span class="o">=</span><span class="s2">&quot;radio&quot;</span><span class="p">]:</span><span class="n">checked</span><span class="o">+</span><span class="n">label</span><span class="p">:</span><span class="n">after</span><span class="p">,</span> <span class="p">[</span><span class="nb">type</span><span class="o">=</span><span class="s2">&quot;radio&quot;</span><span class="p">]</span><span class="o">.</span><span class="k">with</span><span class="o">-</span><span class="n">gap</span><span class="p">:</span><span class="n">checked</span><span class="o">+</span><span class="n">label</span><span class="p">:</span><span class="n">before</span><span class="p">,</span> <span class="p">[</span><span class="nb">type</span><span class="o">=</span><span class="s2">&quot;radio&quot;</span><span class="p">]</span><span class="o">.</span><span class="k">with</span><span class="o">-</span><span class="n">gap</span><span class="p">:</span><span class="n">checked</span><span class="o">+</span><span class="n">label</span><span class="p">:</span><span class="n">after</span><span class="p">{</span>
+  <span class="n">background</span><span class="o">-</span><span class="n">color</span><span class="p">:</span> <span class="c1">#388e3c;</span>
+<span class="p">}</span>
+
+<span class="p">[</span><span class="nb">type</span><span class="o">=</span><span class="s2">&quot;radio&quot;</span><span class="p">]:</span><span class="n">checked</span><span class="o">+</span><span class="n">label</span><span class="p">:</span><span class="n">after</span><span class="p">,</span> <span class="p">[</span><span class="nb">type</span><span class="o">=</span><span class="s2">&quot;radio&quot;</span><span class="p">]</span><span class="o">.</span><span class="k">with</span><span class="o">-</span><span class="n">gap</span><span class="p">:</span><span class="n">checked</span><span class="o">+</span><span class="n">label</span><span class="p">:</span><span class="n">after</span><span class="p">{</span>
+  <span class="n">background</span><span class="o">-</span><span class="n">color</span><span class="p">:</span> <span class="c1">#388e3c;</span>
+<span class="p">}</span>
+
+<span class="p">[</span><span class="nb">type</span><span class="o">=</span><span class="s2">&quot;radio&quot;</span><span class="p">]:</span><span class="n">checked</span><span class="o">+</span><span class="n">label</span><span class="p">:</span><span class="n">after</span><span class="p">,</span> <span class="p">[</span><span class="nb">type</span><span class="o">=</span><span class="s2">&quot;radio&quot;</span><span class="p">]</span><span class="o">.</span><span class="k">with</span><span class="o">-</span><span class="n">gap</span><span class="p">:</span><span class="n">checked</span><span class="o">+</span><span class="n">label</span><span class="p">:</span><span class="n">before</span><span class="p">,</span> <span class="p">[</span><span class="nb">type</span><span class="o">=</span><span class="s2">&quot;radio&quot;</span><span class="p">]</span><span class="o">.</span><span class="k">with</span><span class="o">-</span><span class="n">gap</span><span class="p">:</span><span class="n">checked</span><span class="o">+</span><span class="n">label</span><span class="p">:</span><span class="n">after</span><span class="p">{</span>
+  <span class="n">border</span><span class="o">-</span><span class="n">color</span><span class="p">:</span> <span class="c1">#388e3c;</span>
+<span class="p">}</span>
+
+<span class="nb">input</span><span class="p">:</span><span class="ow">not</span><span class="p">([</span><span class="nb">type</span><span class="p">]):</span><span class="n">focus</span><span class="p">:</span><span class="ow">not</span><span class="p">([</span><span class="n">readonly</span><span class="p">]),</span> <span class="nb">input</span><span class="p">[</span><span class="nb">type</span><span class="o">=</span><span class="n">text</span><span class="p">]:</span><span class="ow">not</span><span class="p">(</span><span class="o">.</span><span class="n">browser</span><span class="o">-</span><span class="n">default</span><span class="p">):</span><span class="n">focus</span><span class="p">:</span><span class="ow">not</span><span class="p">([</span><span class="n">readonly</span><span class="p">]),</span> <span class="nb">input</span><span class="p">[</span><span class="nb">type</span><span class="o">=</span><span class="n">password</span><span class="p">]:</span><span class="ow">not</span><span class="p">(</span><span class="o">.</span><span class="n">browser</span><span class="o">-</span><span class="n">default</span><span class="p">):</span><span class="n">focus</span><span class="p">:</span><span class="ow">not</span><span class="p">([</span><span class="n">readonly</span><span class="p">]),</span> <span class="nb">input</span><span class="p">[</span><span class="nb">type</span><span class="o">=</span><span class="n">email</span><span class="p">]:</span><span class="ow">not</span><span class="p">(</span><span class="o">.</span><span class="n">browser</span><span class="o">-</span><span class="n">default</span><span class="p">):</span><span class="n">focus</span><span class="p">:</span><span class="ow">not</span><span class="p">([</span><span class="n">readonly</span><span class="p">]){</span>
+  <span class="n">border</span><span class="o">-</span><span class="n">color</span><span class="p">:</span> <span class="c1">#388e3c;</span>
+  <span class="n">box</span><span class="o">-</span><span class="n">shadow</span><span class="p">:</span> <span class="mi">0</span> <span class="mi">1</span><span class="n">px</span> <span class="mi">0</span> <span class="mi">0</span> <span class="c1">#388e3c;</span>
+<span class="p">}</span>
+
+<span class="o">/**</span>
+<span class="o">*</span><span class="n">Navbar</span>
+<span class="o">*/</span>
+
+<span class="o">.</span><span class="n">nav</span><span class="o">-</span><span class="n">wrapper</span> <span class="p">{</span>
+  <span class="n">background</span><span class="o">-</span><span class="n">color</span><span class="p">:</span> <span class="c1">#424242;</span>
+<span class="p">}</span>
+
+<span class="o">.</span><span class="n">nav</span><span class="o">-</span><span class="n">wrapper</span> <span class="n">a</span><span class="p">:</span><span class="n">hover</span><span class="p">{</span>
+  <span class="n">background</span><span class="o">-</span><span class="n">color</span><span class="p">:</span> <span class="c1">#505050;</span>
+<span class="p">}</span>
+
+
+<span class="o">/**</span>
+ <span class="o">*</span> <span class="n">Canvas</span>
+ <span class="o">*/</span>
+
+ <span class="o">.</span><span class="n">whiteboard</span> <span class="p">{</span>
+   <span class="n">position</span><span class="p">:</span><span class="n">fixed</span><span class="p">;</span>
+   <span class="n">width</span><span class="p">:</span><span class="mi">100</span><span class="o">%</span><span class="p">;</span>
+   <span class="n">height</span><span class="p">:</span><span class="mi">100</span><span class="o">%</span><span class="p">;</span>
+   <span class="n">margin</span><span class="p">:</span><span class="mi">0</span><span class="p">;</span>
+   <span class="n">padding</span><span class="p">:</span><span class="mi">0</span><span class="p">;</span>
+   <span class="n">cursor</span><span class="p">:</span> <span class="n">hand</span><span class="p">;</span>
+   <span class="n">background</span><span class="o">-</span><span class="n">image</span><span class="p">:</span><span class="n">url</span><span class="p">(</span><span class="s1">&#39;images/quadrillage.png&#39;</span><span class="p">);</span>
+   <span class="n">background</span><span class="o">-</span><span class="n">position</span><span class="p">:</span> <span class="n">center</span> <span class="n">center</span><span class="p">;</span>
+   <span class="n">background</span><span class="o">-</span><span class="n">attachment</span><span class="p">:</span> <span class="n">fixed</span><span class="p">;</span>
+ <span class="p">}</span>
+
+
+<span class="o">/**</span>
+ <span class="o">*</span> <span class="n">Buttons</span> <span class="n">whiteboard</span>
+ <span class="o">*/</span>
+
+<span class="o">.</span><span class="n">colors</span> <span class="p">{</span>
+  <span class="n">position</span><span class="p">:</span> <span class="n">fixed</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="o">.</span><span class="n">color</span> <span class="p">{</span>
+  <span class="n">display</span><span class="p">:</span> <span class="n">inline</span><span class="o">-</span><span class="n">block</span><span class="p">;</span>
+  <span class="n">border</span><span class="o">-</span><span class="n">radius</span><span class="p">:</span> <span class="mi">50</span><span class="n">px</span><span class="p">;</span>
+  <span class="n">height</span><span class="p">:</span> <span class="mi">40</span><span class="n">px</span><span class="p">;</span>
+  <span class="n">width</span><span class="p">:</span> <span class="mi">40</span><span class="n">px</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="c1">#palette{</span>
+  <span class="n">margin</span><span class="o">-</span><span class="n">bottom</span><span class="p">:</span> <span class="mi">70</span><span class="n">px</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="o">.</span><span class="n">eraser</span><span class="p">{</span>
+  <span class="n">position</span><span class="p">:</span><span class="n">fixed</span><span class="p">;</span>
+  <span class="n">bottom</span><span class="p">:</span> <span class="mi">0</span><span class="n">px</span><span class="p">;</span>
+  <span class="n">right</span><span class="p">:</span> <span class="mi">23</span><span class="n">px</span><span class="p">;</span>
+  <span class="n">margin</span><span class="o">-</span><span class="n">bottom</span><span class="p">:</span> <span class="mi">20</span><span class="n">px</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="package-json-dans-assets">
+<h2>package.json (dans assets)<a class="headerlink" href="#package-json-dans-assets" title="Lien permanent vers ce titre">¶</a></h2>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="p">{</span>
+  <span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;assets&quot;</span><span class="p">,</span>
+  <span class="s2">&quot;version&quot;</span><span class="p">:</span> <span class="s2">&quot;1.0.0&quot;</span><span class="p">,</span>
+  <span class="s2">&quot;description&quot;</span><span class="p">:</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
+  <span class="s2">&quot;main&quot;</span><span class="p">:</span> <span class="s2">&quot;index.js&quot;</span><span class="p">,</span>
+  <span class="s2">&quot;scripts&quot;</span><span class="p">:</span> <span class="p">{</span>
+    <span class="s2">&quot;test&quot;</span><span class="p">:</span> <span class="s2">&quot;echo </span><span class="se">\&quot;</span><span class="s2">Error: no test specified</span><span class="se">\&quot;</span><span class="s2"> &amp;&amp; exit 1&quot;</span>
+  <span class="p">},</span>
+  <span class="s2">&quot;author&quot;</span><span class="p">:</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
+  <span class="s2">&quot;license&quot;</span><span class="p">:</span> <span class="s2">&quot;ISC&quot;</span><span class="p">,</span>
+  <span class="s2">&quot;dependencies&quot;</span><span class="p">:</span> <span class="p">{</span>
+    <span class="s2">&quot;materialize-css&quot;</span><span class="p">:</span> <span class="s2">&quot;^0.100.2&quot;</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="socket-js">
+<h2>socket.js<a class="headerlink" href="#socket-js" title="Lien permanent vers ce titre">¶</a></h2>
+<div class="highlight-default"><div class="highlight"><pre><span></span>/*
+Fonction qui renvoie la valeur associee au radio button coche
+*/
+function getRadioVal(form, name) {
+    var val;
+    // get list of radio buttons with specified name
+    var radios = form.elements[name];
+    // loop through list of radio buttons
+    for (var i=0, len=radios.length; i&lt;len; i++) {
+        if ( radios[i].checked ) { // radio checked?
+            val = radios[i].value; // if so, hold its value in val
+            break; // and break out of for loop
+        }
+    }
+    return val; // return value of checked radio or undefined if none checked
+}
+
+
+$(function () {
+
+    var socket = io(); // On initie une nouvelle session
+    var myName = &quot;&quot;; // Variable pour connaitre le nom de la personne
+
+    // Pour faire apparaitre l&#39;ecran de connexion
+    $(&#39;#screen2&#39;).hide();
+    $(&#39;#screen1&#39;).show();
+
+  // Pour initialiser le canvas
+  var canvas = document.getElementsByClassName(&#39;whiteboard&#39;)[0];
+  var colors = document.getElementsByClassName(&#39;color&#39;);
+  var context = canvas.getContext(&#39;2d&#39;);
+  var current = {
+    color: &#39;black&#39;
+  };
+  var drawing = false;
+  canvas.addEventListener(&#39;mousedown&#39;, onMouseDown, false);
+  canvas.addEventListener(&#39;mouseup&#39;, onMouseUp, false);
+  canvas.addEventListener(&#39;mouseout&#39;, onMouseUp, false);
+  canvas.addEventListener(&#39;mousemove&#39;, throttle(onMouseMove, 10), false);
+  for (var i = 0; i &lt; colors.length; i++){
+    colors[i].addEventListener(&#39;click&#39;, onColorUpdate, false);
+  }
+
+
+
+
+    $(&#39;#inputname&#39;).submit(function(){ // Quand on recoit les donnees du formulaire de connexion
+      var myObj = { &quot;name&quot;: $(&#39;#mbis&#39;).val(), &quot;status&quot;:getRadioVal(document.getElementById(&#39;inputname&#39;), &#39;group1&#39;)}; // On met les donnees dans un dico
+      socket.emit(&#39;user name&#39;, myObj); // On les envoie au serveur
+      $(&#39;#mbis&#39;).val(&#39;&#39;); // On nettoie le formulaire
+      return false;
+    });
+
+    socket.on(&#39;wrong name&#39;, function(myObj){ // Si le serveur nous repond que le nom est deja pris
+      Materialize.toast(&#39;Ce pseudo a déjà été pris!&#39;, 4000) // On affiche un message a l&#39;utilisateur de tenter un autre nom
+      $(&#39;#mbis&#39;).val(&#39;&#39;);
+    });
+
+    socket.on(&#39;username available&#39;, function(name){ // Si le nom est libre
+      // On affiche le chat :
+      $(&#39;#messages&#39;).empty();
+      context.clearRect(0, 0, canvas.width, canvas.height);
+      $(&#39;#screen1&#39;).hide();
+      $(&#39;#screen2&#39;).show();
+      myName = name; // On recupere le nom
+      $(&#39;#messages&#39;).append($(&#39;&lt;li style=&quot;color:DarkGreen;font-weight:bold;&quot;&gt;&#39;).text(&quot;Bienvenue sur la discussion &quot;+name+&quot; !&quot;)); // On affiche un message de bienvenue à la personne qui vient de se connecter
+    });
+
+    $(&#39;#inputmessage&#39;).submit(function(){ // Pour envoyer un message sur le chat
+      var input = $(&#39;#m&#39;).val();
+      var namedestination = getRadioVal(document.getElementById(&#39;listusers&#39;), &#39;group2&#39;); // On recupere le destinataire grace au radio button
+      // Pour la premiere connexion
+      if (namedestination == undefined){ // Au cas ou une personne se deconnecte on revient sur &#39;Tous&#39;
+        namedestination =&quot;Tous&quot;;
+      }
+      $(&#39;#m&#39;).val(&#39;&#39;);
+      console.log(namedestination);
+      var privatemessage = input;
+      var myObj = { &quot;namedestination&quot;: namedestination, &quot;privatemessage&quot;:privatemessage};
+      socket.emit(&#39;chat message&#39;, myObj); // On envoie le message au serveur qui s&#39;occupera d&#39;addresser le message a la bonne personne
+      return false;
+    });
+
+    socket.on(&#39;chat message&#39;, function(myObj){ // Quand on recoit un message destine a tout le monde retransmis par le serveur
+      $(&#39;#messages&#39;).append($(&#39;&lt;li&gt;&#39;).text(myObj.name +&quot; : &quot;+ myObj.message)); // On l&#39;ajoute au chat
+      // Pour scroll automatiquement vers le bas:
+      var elem = document.getElementById(&#39;messages&#39;);
+      elem.scrollTop = elem.scrollHeight;
+    });
+
+    socket.on(&#39;private message&#39;, function(myObj){ // Quand on recoit un message prive retransmis par le serveur
+      $(&#39;#messages&#39;).append($(&#39;&lt;li&gt;&#39;).text(myObj.nameemetteur +&quot; à &quot;+ myObj.namedestination+&quot; : &quot;+ myObj.message)); // On l&#39;ajoute au chat
+      // Pour scroll automatiquement vers le bas:
+      var elem = document.getElementById(&#39;messages&#39;);
+      elem.scrollTop = elem.scrollHeight;
+    });
+
+    socket.on(&#39;user list&#39;, function(myDico){ // Pour mettre a jour la liste des personnes connectees
+      $(&#39;#listusers&#39;).empty(); // On la nettoie
+      for (var index in myDico){ // On la re-remplie
+        if (index == &quot;Tous&quot;){ // On fait un texte sans le statut
+          $(&#39;#listusers&#39;).append(&#39;&lt;p&gt;&lt;input name=&quot;group2&quot; type=&quot;radio&quot; id=&#39;+index+&#39; value=&quot;&#39;+index+&#39;&quot; checked/&gt; &lt;label for=&#39;+index+&#39;&gt;&#39;+ index +&#39;&lt;/label&gt;&lt;/p&gt;&#39;);
+        }else if (index == myName){// On ne se met pas dans la liste
+        }else{// On fait un texte avec le statut
+        $(&#39;#listusers&#39;).append(&#39;&lt;p&gt;&lt;input name=&quot;group2&quot; type=&quot;radio&quot; id=&#39;+index+&#39; value=&quot;&#39;+index+&#39;&quot;/&gt; &lt;label for=&#39;+index+&#39;&gt;&#39;+ index+&#39; (&#39;+myDico[index]+&#39;)&lt;/label&gt;&lt;/p&gt;&#39;);}
+      }
+    });
+
+    socket.on(&#39;user connect&#39;, function(name){ // Quand le serveur nous dit qu&#39;un utilisateur est connecte on affiche un message
+      $(&#39;#messages&#39;).append($(&#39;&lt;li style=&quot;color:grey;font-style:italic;&quot;&gt;&#39;).text(&quot;.. &quot;+ name + &quot; vient de se connecter!&quot;));
+    });
+    socket.on(&#39;user disconnect&#39;, function(name){ // Quand le serveur nous dit qu&#39;un utilisateur est deconnecte on affiche un message
+      $(&#39;#messages&#39;).append($(&#39;&lt;li style=&quot;color:grey;font-style:italic;&quot;&gt;&gt;&#39;).text(&quot;.. &quot;+ name + &quot; vient de se déconnecter!&quot;));
+    });
+
+
+
+      // Bouton pour effacer le canvas (cela n&#39;efface que notre canvas, cela laisse nos dessins sur le canvas des autres du coup)
+      $(&#39;.eraser&#39;).click(function(){context.clearRect(0, 0, canvas.width, canvas.height);})
+
+      // Quand le serveur nous dit que quelqu&#39;un nous a fait un dessin, on lance la fonction &#39;onDrawingEvent&#39; qui lance &#39;drawLine&#39;
+      socket.on(&#39;drawing&#39;, onDrawingEvent);
+
+      // Efface le dessin si l&#39;utilisateur retrecit ou agrandit la fenetre
+      window.addEventListener(&#39;resize&#39;, onResize, false);
+      onResize();
+
+
+      function drawLine(x0, y0, x1, y1, color, emit){ // Est active quand on fait un dessin (onMouseUp ... ) ou quand on recoit un dessin
+        context.beginPath();
+        context.moveTo(x0, y0);
+        context.lineTo(x1, y1);
+        context.strokeStyle = color;
+        context.lineWidth = 2;
+        context.stroke();
+        context.closePath();
+
+        if (!emit) { return; } // Si emit est false, on n&#39;envoie rien
+
+        // Si emit est a true:
+        var w = canvas.width;
+        var h = canvas.height;
+
+        // Pour envoyer a la personne desiree
+        var namedestination = getRadioVal(document.getElementById(&#39;listusers&#39;), &#39;group2&#39;);
+        // Pour la premiere connexion
+        if (namedestination == undefined){
+          namedestination =&quot;Tous&quot;;
+        }
+
+
+        socket.emit(&#39;drawing&#39;, { // Envoie des points du dessin au serveur
+          &quot;x0&quot;: x0 / w,
+          &quot;y0&quot;: y0 / h,
+          &quot;x1&quot;: x1 / w,
+          &quot;y1&quot;: y1 / h,
+          &quot;color&quot;: color,
+          &quot;dest&quot;:namedestination
+        });
+        return 0;
+      }
+
+      function onMouseDown(e){
+        drawing = true;
+        current.x = e.clientX;
+        current.y = e.clientY;
+      }
+
+      function onMouseUp(e){
+        if (!drawing) { return; }
+        drawing = false;
+        drawLine(current.x, current.y, e.clientX, e.clientY, current.color, true);
+      }
+
+      function onMouseMove(e){
+        if (!drawing) { return; }
+        drawLine(current.x, current.y, e.clientX, e.clientY, current.color, true);
+        current.x = e.clientX;
+        current.y = e.clientY;
+      }
+
+      function onColorUpdate(e){
+        current.color = e.target.className.split(&#39; &#39;)[1];
+      }
+
+      // limit the number of events per second
+      function throttle(callback, delay) {
+        var previousCall = new Date().getTime();
+        return function() {
+          var time = new Date().getTime();
+
+          if ((time - previousCall) &gt;= delay) {
+            previousCall = time;
+            callback.apply(null, arguments);
+          }
+        };
+      }
+
+      function onDrawingEvent(data){
+        var w = canvas.width;
+        var h = canvas.height;
+        drawLine(data.x0 * w, data.y0 * h, data.x1 * w, data.y1 * h, data.color, false);
+      }
+
+      // make the canvas fill its parent
+      function onResize() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+      }
+
+
+  });
+</pre></div>
+</div>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="index.html">WebSocket</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="intro.html">Introduction au WebSocket</a></li>
+<li class="toctree-l1"><a class="reference internal" href="node.html">Le WebSocket avec Node.js</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tuto.html">Tutoriel : comment faire un chat sur Node.js avec Socket.io?</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Code</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#app-js">app.js</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#package-json-a-la-source-du-projet">package.json (à la source du projet)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#websocketdemo-ejs">websocketdemo.ejs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#home-ejs">home.ejs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#ejs">404.ejs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#navbar-ejs">navbar.ejs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#js-import-ejs">js_import.ejs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#header-imports-ejs">header_imports.ejs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#javascript-js">javascript.js</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#main-css">main.css</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#package-json-dans-assets">package.json (dans assets)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#socket-js">socket.js</a></li>
+</ul>
+</li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="index.html">Documentation overview</a><ul>
+      <li>Previous: <a href="tuto.html" title="Chapitre précédent">Tutoriel : comment faire un chat sur Node.js avec Socket.io?</a></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Recherche rapide</h3>
+    <form class="search" action="search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2018, LECAM Marie & PUGGIONI Marion.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.6.6</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.10</a>
+      
+      |
+      <a href="_sources/code.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

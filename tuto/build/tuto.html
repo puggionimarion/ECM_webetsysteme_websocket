@@ -1,0 +1,840 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml" lang="fr">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Tutoriel : comment faire un chat sur Node.js avec Socket.io? &#8212; documentation WebSocket </title>
+    <link rel="stylesheet" href="_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <script type="text/javascript" src="_static/translations.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Recherche" href="search.html" />
+    <link rel="next" title="Code" href="code.html" />
+    <link rel="prev" title="Le WebSocket avec Node.js" href="node.html" />
+   
+  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head>
+  <body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="tutoriel-comment-faire-un-chat-sur-node-js-avec-socket-io">
+<h1>Tutoriel : comment faire un chat sur Node.js avec Socket.io?<a class="headerlink" href="#tutoriel-comment-faire-un-chat-sur-node-js-avec-socket-io" title="Lien permanent vers ce titre">¶</a></h1>
+<div class="section" id="point-de-depart">
+<h2>Point de départ<a class="headerlink" href="#point-de-depart" title="Lien permanent vers ce titre">¶</a></h2>
+<p>1.Tout d’abord, il faut créer une structure de dossier adéquate (on peut faire ça facilement sur Atom avec New Folder, New File).</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="o">-</span> <span class="n">projet</span>
+<span class="o">----</span> <span class="n">assets</span>
+<span class="o">-------------</span> <span class="n">images</span>
+<span class="o">-------------</span> <span class="n">main</span><span class="o">.</span><span class="n">css</span>
+<span class="o">-------------</span> <span class="n">javascript</span><span class="o">.</span><span class="n">js</span>
+<span class="o">-------------</span> <span class="n">socket</span><span class="o">.</span><span class="n">js</span>
+<span class="o">----</span> <span class="n">views</span>
+<span class="o">-------------</span> <span class="n">partials</span>
+<span class="o">--------------------------</span> <span class="n">header_imports</span><span class="o">.</span><span class="n">ejs</span>
+<span class="o">--------------------------</span> <span class="n">js_import</span><span class="o">.</span><span class="n">ejs</span>
+<span class="o">--------------------------</span> <span class="n">navbar</span><span class="o">.</span><span class="n">ejs</span>
+<span class="o">-------------</span> <span class="mf">404.</span><span class="n">ejs</span>
+<span class="o">-------------</span> <span class="n">home</span><span class="o">.</span><span class="n">ejs</span>
+<span class="o">-------------</span> <span class="n">websocketdemo</span><span class="o">.</span><span class="n">ejs</span>
+<span class="o">----</span> <span class="n">app</span><span class="o">.</span><span class="n">js</span>
+</pre></div>
+</div>
+<p>On a mis la tous les fichiers qui seront utiles au site entier, on va les remplir au fur et à mesure.</p>
+<p>2.On va maintenant importer les librairies nécessaires. Remarque: on peut passer lors des “npm init”. On se place à la racine du projet avec la console, puis on fait:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">npm</span> <span class="n">init</span>
+<span class="n">npm</span> <span class="n">install</span> <span class="o">--</span><span class="n">save</span> <span class="n">express</span>
+<span class="n">npm</span> <span class="n">install</span> <span class="o">--</span><span class="n">save</span> <span class="n">ejs</span>
+<span class="n">cd</span> <span class="o">.</span>\<span class="n">assets</span>\
+<span class="n">npm</span> <span class="n">init</span>
+<span class="n">npm</span> <span class="n">install</span> <span class="o">--</span><span class="n">save</span> <span class="n">materialize</span><span class="o">-</span><span class="n">css</span>
+<span class="n">cd</span> <span class="o">..</span>
+</pre></div>
+</div>
+<p>Cela permet d’installer express, ejs, materialize et de les placer dans les “package.json”.</p>
+<p>3.On commence par s’occuper du côté serveur: on ajoute le code suivant à <strong>app.js</strong> :</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">var</span> <span class="n">express</span> <span class="o">=</span> <span class="n">require</span><span class="p">(</span><span class="s1">&#39;express&#39;</span><span class="p">)</span>
+<span class="n">var</span> <span class="n">app</span> <span class="o">=</span> <span class="n">express</span><span class="p">()</span>
+
+<span class="o">//</span> <span class="n">Pour</span> <span class="n">utiliser</span> <span class="n">ejs</span><span class="p">:</span>
+<span class="n">app</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="s1">&#39;view engine&#39;</span><span class="p">,</span> <span class="s1">&#39;ejs&#39;</span><span class="p">)</span>
+<span class="o">//</span> <span class="n">Pour</span> <span class="n">accéder</span> <span class="n">aux</span> <span class="n">fichiers</span> <span class="s1">&#39;static&#39;</span> <span class="n">comme</span> <span class="n">les</span> <span class="n">images</span><span class="p">:</span>
+<span class="n">app</span><span class="o">.</span><span class="n">use</span><span class="p">(</span><span class="s2">&quot;/static&quot;</span><span class="p">,</span> <span class="n">express</span><span class="o">.</span><span class="n">static</span><span class="p">(</span><span class="n">__dirname</span> <span class="o">+</span> <span class="s1">&#39;/assets&#39;</span><span class="p">))</span>
+
+<span class="o">//</span> <span class="n">On</span> <span class="n">créé</span> <span class="n">le</span> <span class="n">chemin</span> <span class="n">vers</span> <span class="n">la</span> <span class="n">page</span> <span class="n">d</span><span class="s1">&#39;accueil qui est home.ejs</span>
+<span class="n">app</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;/&#39;</span><span class="p">,</span> <span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="n">response</span><span class="p">)</span> <span class="o">=&gt;</span> <span class="p">{</span>
+    <span class="n">response</span><span class="o">.</span><span class="n">render</span><span class="p">(</span><span class="s2">&quot;home&quot;</span><span class="p">)</span>
+<span class="p">})</span>
+
+<span class="o">//</span> <span class="n">On</span> <span class="n">créé</span> <span class="n">le</span> <span class="n">chemin</span> <span class="n">vers</span> <span class="n">l</span><span class="s1">&#39;aide en ligne qui est websocketdemo.ejs</span>
+<span class="n">app</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;/websocketdemo&#39;</span><span class="p">,</span> <span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="n">response</span><span class="p">)</span> <span class="o">=&gt;</span> <span class="p">{</span>
+    <span class="n">response</span><span class="o">.</span><span class="n">render</span><span class="p">(</span><span class="s2">&quot;websocketdemo&quot;</span><span class="p">)</span>
+<span class="p">})</span>
+
+<span class="o">//</span> <span class="n">Si</span> <span class="n">aucun</span> <span class="n">des</span> <span class="n">chemins</span> <span class="n">précédents</span> <span class="n">ne</span> <span class="n">correspond</span><span class="p">,</span> <span class="n">on</span> <span class="n">envoie</span> <span class="n">la</span> <span class="n">page</span> <span class="mi">404</span><span class="p">:</span>
+<span class="n">app</span><span class="o">.</span><span class="n">use</span><span class="p">(</span><span class="n">function</span> <span class="p">(</span><span class="n">req</span><span class="p">,</span> <span class="n">res</span><span class="p">,</span> <span class="nb">next</span><span class="p">)</span> <span class="p">{</span>
+    <span class="n">res</span><span class="o">.</span><span class="n">status</span><span class="p">(</span><span class="mi">404</span><span class="p">)</span><span class="o">.</span><span class="n">render</span><span class="p">(</span><span class="s2">&quot;404&quot;</span><span class="p">)</span>
+<span class="p">})</span>
+
+<span class="n">port</span> <span class="o">=</span> <span class="mi">3000</span>
+<span class="n">app</span><span class="o">.</span><span class="n">listen</span><span class="p">(</span><span class="n">port</span><span class="p">,</span> <span class="n">function</span><span class="p">()</span> <span class="p">{</span>
+  <span class="n">console</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="s2">&quot;Listening on: http://localhost:&quot;</span> <span class="o">+</span> <span class="n">port</span><span class="o">.</span><span class="n">toString</span><span class="p">())</span>
+<span class="p">})</span>
+</pre></div>
+</div>
+<p>Ce code permet de créer le côté serveur avec node.js. A ce stade, nous pouvons écrire dans la console à la racine du projet:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">node</span> <span class="n">app</span><span class="o">.</span><span class="n">js</span>
+</pre></div>
+</div>
+<p>et l’application nous répond bien: Listening on: <a class="reference external" href="http://localhost:3000">http://localhost:3000</a>
+Si on va à cette adresse, rien ne s’affiche et c’est normal, car le fichier home.ejs est vide.</p>
+<p>On peut quitter en faisant Ctrl + C.</p>
+<p>4.On va maintenant s’occuper des fichiers .ejs :
+Commençons par <strong>home.ejs</strong>, on fait une page toute simple avec une navbar: (n’oubliez pas de sauvegarder au fur et à mesure!)</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span>&lt;html&gt;
+
+ &lt;head&gt;
+     &lt;meta charset=&quot;utf-8&quot; /&gt;
+     &lt;title&gt;Maths en ligne&lt;/title&gt;
+     &lt;!--Permet d&#39;inclure les imports pour la police, materialize et css--&gt;
+     &lt;% include partials/header_imports.ejs %&gt;
+
+ &lt;/head&gt;
+ &lt;body&gt;
+     &lt;!--Permet d&#39;inclure le menu--&gt;
+     &lt;% include partials/navbar.ejs %&gt;
+
+       &lt;div id=&quot;fond_home&quot;&gt;
+         &lt;div class=&quot;container&quot;&gt;
+           &lt;h1 class=&quot;header&quot;&gt;Bienvenue!&lt;/h1&gt;
+           &lt;h5 class=&quot;grey-text text-darken-3 lighten-3&quot;&gt;Besoin d&#39;un coup de main en maths? Sur ce site vous pouvez bénéficier de cours et d&#39;explications en ligne!&lt;/h5&gt;
+           &lt;/br&gt;&lt;/br&gt;
+
+         &lt;div class=&quot;row&quot; &gt;
+           &lt;div class=&quot;col l4 m12 s12&quot;&gt;
+             &lt;div class=&quot;row&quot;&gt;
+               &lt;div class=&quot;col s12&quot; style=&quot;text-align:center&quot;&gt;
+                 &lt;i class=&quot;material-icons&quot; style=&quot;font-size: 150px&quot;&gt;lightbulb_outline&lt;/i&gt;
+               &lt;/div&gt;
+               &lt;div class=&quot;col s12&quot; style=&quot;text-align:center&quot;&gt;
+                 &lt;h4&gt;Pratique:&lt;/h4&gt; Tous vos cours expliqués avec des exercices corrigés!
+               &lt;/div&gt;
+            &lt;/div&gt;
+          &lt;/div&gt;
+          &lt;div class=&quot;col l4 m12 s12&quot;&gt;
+            &lt;div class=&quot;row&quot;&gt;
+              &lt;div class=&quot;col s12&quot; style=&quot;text-align:center&quot;&gt;
+                &lt;i class=&quot;material-icons&quot; style=&quot;font-size: 150px&quot;&gt;person&lt;/i&gt;
+              &lt;/div&gt;
+              &lt;div class=&quot;col s12&quot; style=&quot;text-align:center&quot;&gt;
+                &lt;h4&gt;Personnalisé: &lt;/h4&gt; Avec l&#39;aide en ligne, tu pourras directement poser tes questions!
+              &lt;/div&gt;
+           &lt;/div&gt;
+         &lt;/div&gt;
+         &lt;div class=&quot;col l4 m12 s12&quot;&gt;
+           &lt;div class=&quot;row&quot;&gt;
+             &lt;div class=&quot;col s12&quot; style=&quot;text-align:center&quot;&gt;
+               &lt;i class=&quot;material-icons&quot; style=&quot;font-size: 150px&quot;&gt;computer&lt;/i&gt;
+             &lt;/div&gt;
+             &lt;div class=&quot;col s12&quot; style=&quot;text-align:center&quot;&gt;
+              &lt;h4&gt;En ligne: &lt;/h4&gt; Tu peux travailler facilement depuis l&#39;école ou la maison!
+             &lt;/div&gt;
+           &lt;/div&gt;
+        &lt;/div&gt;
+      &lt;/div&gt;
+
+        &lt;/br&gt;&lt;/br&gt;&lt;/br&gt;&lt;/br&gt;&lt;/br&gt;
+
+  &lt;/div&gt;
+&lt;/div&gt;
+
+&lt;div class=&quot;section white&quot; id=&quot;footer&quot;&gt;
+    &lt;p class=&quot;grey-text text-darken-3 lighten-3&quot;&gt;Projet WEB 3A - WEBSOCKET - Marie LECAM &amp; Marion PUGGIONI&lt;/p&gt;
+&lt;/div&gt;
+
+     &lt;!--Permet d&#39;inclure les imports pour jquery, materialize et js--&gt;
+     &lt;% include partials/js_import.ejs %&gt;
+ &lt;/body&gt;
+ &lt;/html&gt;
+</pre></div>
+</div>
+<p>Il faut bien entendu remplir les fichiers partials:
+Dans <strong>navbar.ejs</strong>, on crée un menu responsive avec un onglet “Maths en ligne(s)” pour revenir à l’accueil, un onglet “Cours” que l’on ne va pas activer, et enfin l’onglet “Aide en ligne” ou nous mettrons nos démonstrations websocket:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="o">&lt;</span><span class="n">header</span><span class="o">&gt;</span>
+    <span class="o">&lt;</span><span class="n">div</span> <span class="n">class</span><span class="o">=</span><span class="s2">&quot;navbar-fixed &quot;</span><span class="o">&gt;</span>
+        <span class="o">&lt;</span><span class="n">nav</span><span class="o">&gt;</span>
+            <span class="o">&lt;</span><span class="n">div</span> <span class="n">class</span><span class="o">=</span><span class="s2">&quot;nav-wrapper&quot;</span><span class="o">&gt;</span>
+                <span class="o">&lt;</span><span class="n">a</span> <span class="n">href</span><span class="o">=</span><span class="s2">&quot;#&quot;</span> <span class="n">data</span><span class="o">-</span><span class="n">activates</span><span class="o">=</span><span class="s2">&quot;mobile-demo&quot;</span> <span class="n">class</span><span class="o">=</span><span class="s2">&quot;button-collapse&quot;</span><span class="o">&gt;&lt;</span><span class="n">i</span> <span class="n">class</span><span class="o">=</span><span class="s2">&quot;material-icons&quot;</span><span class="o">&gt;</span><span class="n">menu</span><span class="o">&lt;/</span><span class="n">i</span><span class="o">&gt;&lt;/</span><span class="n">a</span><span class="o">&gt;</span>
+                <span class="o">&lt;</span><span class="n">ul</span> <span class="n">class</span><span class="o">=</span><span class="s2">&quot;left hide-on-med-and-down&quot;</span><span class="o">&gt;</span>
+                    <span class="o">&lt;</span><span class="n">li</span><span class="o">&gt;&lt;</span><span class="n">a</span> <span class="n">href</span><span class="o">=</span><span class="s2">&quot;/&quot;</span> <span class="n">class</span><span class="o">=</span><span class="s2">&quot;brand-logo&quot;</span> <span class="n">style</span><span class="o">=</span><span class="s2">&quot;&quot;</span><span class="o">&gt;</span><span class="n">Maths</span> <span class="n">en</span> <span class="n">ligne</span><span class="p">(</span><span class="n">s</span><span class="p">)</span><span class="o">&lt;/</span><span class="n">a</span><span class="o">&gt;&lt;/</span><span class="n">li</span><span class="o">&gt;</span>
+                <span class="o">&lt;/</span><span class="n">ul</span><span class="o">&gt;</span>
+                <span class="o">&lt;</span><span class="n">ul</span> <span class="n">class</span><span class="o">=</span><span class="s2">&quot;right hide-on-med-and-down&quot;</span><span class="o">&gt;</span>
+                    <span class="o">&lt;</span><span class="n">li</span><span class="o">&gt;&lt;</span><span class="n">a</span> <span class="n">href</span><span class="o">=</span><span class="s2">&quot;#&quot;</span><span class="o">&gt;</span><span class="n">Cours</span><span class="o">&lt;/</span><span class="n">a</span><span class="o">&gt;&lt;/</span><span class="n">li</span><span class="o">&gt;</span>
+                    <span class="o">&lt;</span><span class="n">li</span><span class="o">&gt;&lt;</span><span class="n">a</span> <span class="n">href</span><span class="o">=</span><span class="s2">&quot;/websocketdemo&quot;</span><span class="o">&gt;</span><span class="n">Aide</span> <span class="n">en</span> <span class="n">ligne</span><span class="o">&lt;/</span><span class="n">a</span><span class="o">&gt;&lt;/</span><span class="n">li</span><span class="o">&gt;</span>
+                <span class="o">&lt;/</span><span class="n">ul</span><span class="o">&gt;</span>
+            <span class="o">&lt;/</span><span class="n">div</span><span class="o">&gt;</span>
+        <span class="o">&lt;/</span><span class="n">nav</span><span class="o">&gt;</span>
+    <span class="o">&lt;/</span><span class="n">div</span><span class="o">&gt;</span>
+    <span class="o">&lt;</span><span class="n">ul</span> <span class="n">class</span><span class="o">=</span><span class="s2">&quot;side-nav&quot;</span> <span class="nb">id</span><span class="o">=</span><span class="s2">&quot;mobile-demo&quot;</span><span class="o">&gt;</span>
+      <span class="o">&lt;</span><span class="n">li</span><span class="o">&gt;&lt;</span><span class="n">a</span> <span class="n">href</span><span class="o">=</span><span class="s2">&quot;/&quot;</span> <span class="n">class</span><span class="o">=</span><span class="s2">&quot;brand-logo&quot;</span> <span class="n">style</span><span class="o">=</span><span class="s2">&quot;&quot;</span><span class="o">&gt;</span><span class="n">Maths</span> <span class="n">en</span> <span class="n">ligne</span><span class="p">(</span><span class="n">s</span><span class="p">)</span><span class="o">&lt;/</span><span class="n">a</span><span class="o">&gt;&lt;/</span><span class="n">li</span><span class="o">&gt;</span>
+      <span class="o">&lt;</span><span class="n">li</span><span class="o">&gt;&lt;</span><span class="n">a</span> <span class="n">href</span><span class="o">=</span><span class="s2">&quot;#&quot;</span><span class="o">&gt;</span><span class="n">Cours</span><span class="o">&lt;/</span><span class="n">a</span><span class="o">&gt;&lt;/</span><span class="n">li</span><span class="o">&gt;</span>
+      <span class="o">&lt;</span><span class="n">li</span><span class="o">&gt;&lt;</span><span class="n">a</span> <span class="n">href</span><span class="o">=</span><span class="s2">&quot;/websocketdemo&quot;</span><span class="o">&gt;</span><span class="n">Aide</span> <span class="n">en</span> <span class="n">ligne</span><span class="o">&lt;/</span><span class="n">a</span><span class="o">&gt;&lt;/</span><span class="n">li</span><span class="o">&gt;</span>
+    <span class="o">&lt;/</span><span class="n">ul</span><span class="o">&gt;</span>
+<span class="o">&lt;/</span><span class="n">header</span><span class="o">&gt;</span>
+</pre></div>
+</div>
+<p>On a besoin de remplir le fichier <strong>javascript.js</strong> pour que lorsqu’on réduise l’écran, le menu s’affiche grâce à un bouton sur le côté:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span>// pour le menu sur le cote
+jQuery( document ).ready(function($){
+$(&#39;.button-collapse&#39;).sideNav({
+      closeOnClick: true
+    }
+  );
+});
+</pre></div>
+</div>
+<p>Dans <strong>js_import.ejs</strong>, on importe tout ce qui est fichier javascript:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span>&lt;!-- Attention à respecter l&#39;ordre d&#39;appel des imports! --&gt;
+&lt;script src=&quot;https://ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js&quot;&gt;&lt;/script&gt;
+&lt;script type=&quot;text/javascript&quot; src=&quot;/static/node_modules/jquery/dist/jquery.min.js&quot;&gt;&lt;/script&gt;
+&lt;script type=&quot;text/javascript&quot; src=&quot;/static/node_modules/materialize-css/dist/js/materialize.min.js&quot;&gt;&lt;/script&gt;
+&lt;script src=&quot;/static/javascript.js&quot;&gt;&lt;/script&gt;
+</pre></div>
+</div>
+<p>Dans <strong>header_imports.ejs</strong>, on importe ce qui est nécessaire pour le css:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span>&lt;!-- Attention à respecter l&#39;ordre d&#39;appel des imports! --&gt;
+&lt;link href=&quot;https://fonts.googleapis.com/icon?family=Material+Icons&quot; rel=&quot;stylesheet&quot;&gt;
+&lt;link type=&quot;text/css&quot; rel=&quot;stylesheet&quot; href=&quot;/static/node_modules/materialize-css/dist/css/materialize.min.css&quot; media=&quot;screen,projection&quot;/&gt;
+&lt;link rel=&quot;stylesheet&quot; type=&quot;text/css&quot; href=&quot;/static/main.css&quot;&gt;
+</pre></div>
+</div>
+<p>Notre <strong>404.ejs</strong>:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span>&lt;html&gt;
+      &lt;head&gt;
+          &lt;meta charset=&quot;utf-8&quot; /&gt;
+          &lt;title&gt;404&lt;/title&gt;
+          &lt;link rel=&quot;stylesheet&quot; type=&quot;text/css&quot; href=&quot;/static/main.css&quot;&gt;
+      &lt;/head&gt;
+
+      &lt;body&gt;
+          &lt;h1&gt; Page 404 !&lt;/h1&gt;
+      &lt;/body&gt;
+&lt;/html&gt;
+</pre></div>
+</div>
+<p>On s’occupe de <strong>websocketdemo.ejs</strong> qui pour l’instant est presque comme home.ejs:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span>&lt;html&gt;
+ &lt;head&gt;
+     &lt;meta charset=&quot;utf-8&quot; /&gt;
+     &lt;title&gt;Aide en ligne&lt;/title&gt;
+     &lt;!--Permet d&#39;inclure les imports pour la police, materialize et css--&gt;
+     &lt;% include partials/header_imports.ejs %&gt;
+
+ &lt;/head&gt;
+ &lt;body&gt;
+     &lt;!--Permet d&#39;inclure le menu--&gt;
+    &lt;% include partials/navbar.ejs %&gt;
+
+     &lt;!--Permet d&#39;inclure les imports pour jquery, materialize et js--&gt;
+     &lt;% include partials/js_import.ejs %&gt;
+ &lt;/body&gt;
+&lt;/html&gt;
+</pre></div>
+</div>
+<p>On lance en tapant sur la console à la racine du projet:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">node</span> <span class="n">app</span><span class="o">.</span><span class="n">js</span>
+</pre></div>
+</div>
+<p>En allant sur chrome à cette adresse: localhost:3000 on peut voir notre site.</p>
+<ol class="arabic" start="5">
+<li><p class="first">On va rajouter un peu de css. Dans le fichier <strong>main.css</strong> :</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">html</span><span class="p">{</span>
+  <span class="nb">min</span><span class="o">-</span><span class="n">height</span><span class="p">:</span> <span class="mi">100</span><span class="o">%</span><span class="p">;</span>
+  <span class="n">position</span><span class="p">:</span> <span class="n">relative</span><span class="p">;</span>
+<span class="p">}</span>
+<span class="n">body</span><span class="p">{</span>
+  <span class="n">margin</span><span class="p">:</span><span class="mi">0</span><span class="n">px</span><span class="p">;</span>
+  <span class="n">padding</span><span class="p">:</span><span class="mi">0</span><span class="n">px</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="n">div</span><span class="p">{</span>
+  <span class="n">margin</span><span class="p">:</span><span class="mi">0</span><span class="n">px</span><span class="p">;</span>
+  <span class="n">padding</span><span class="p">:</span><span class="mi">0</span><span class="n">px</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="n">h1</span><span class="p">{</span>
+  <span class="n">margin</span><span class="o">-</span><span class="n">top</span><span class="p">:</span><span class="mi">0</span><span class="n">px</span><span class="p">;</span>
+  <span class="n">padding</span><span class="o">-</span><span class="n">top</span><span class="p">:</span> <span class="mi">80</span><span class="n">px</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="o">/**</span>
+ <span class="o">*</span> <span class="n">Accueil</span>
+ <span class="o">*/</span>
+
+<span class="c1">#fond_home{</span>
+  <span class="n">position</span><span class="p">:</span><span class="n">relative</span><span class="p">;</span>
+  <span class="n">width</span><span class="p">:</span><span class="mi">100</span><span class="o">%</span><span class="p">;</span>
+  <span class="nb">min</span><span class="o">-</span><span class="n">height</span><span class="p">:</span><span class="mi">90</span><span class="o">%</span><span class="p">;</span>
+  <span class="n">margin</span><span class="p">:</span><span class="mi">0</span><span class="p">;</span>
+  <span class="n">padding</span><span class="p">:</span><span class="mi">0</span><span class="p">;</span>
+  <span class="n">background</span><span class="o">-</span><span class="n">image</span><span class="p">:</span><span class="n">url</span><span class="p">(</span><span class="s1">&#39;images/books_opacity.jpg&#39;</span><span class="p">);</span>
+  <span class="n">background</span><span class="o">-</span><span class="n">position</span><span class="p">:</span> <span class="n">center</span> <span class="n">center</span><span class="p">;</span>
+  <span class="n">background</span><span class="o">-</span><span class="n">repeat</span><span class="p">:</span> <span class="n">no</span><span class="o">-</span><span class="n">repeat</span><span class="p">;</span>
+  <span class="n">background</span><span class="o">-</span><span class="n">attachment</span><span class="p">:</span> <span class="n">fixed</span><span class="p">;</span>
+  <span class="n">background</span><span class="o">-</span><span class="n">size</span><span class="p">:</span> <span class="n">cover</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="c1">#footer{</span>
+  <span class="n">padding</span><span class="p">:</span> <span class="mi">0</span><span class="n">px</span><span class="p">;</span>
+  <span class="n">position</span><span class="p">:</span> <span class="n">absolute</span><span class="p">;</span>
+  <span class="n">left</span><span class="p">:</span> <span class="mi">0</span><span class="p">;</span>
+  <span class="n">bottom</span><span class="p">:</span> <span class="mi">0</span><span class="p">;</span>
+  <span class="n">height</span><span class="p">:</span> <span class="mi">50</span><span class="n">px</span><span class="p">;</span>
+  <span class="n">width</span><span class="p">:</span> <span class="mi">100</span><span class="o">%</span><span class="p">;</span>
+  <span class="n">overflow</span><span class="p">:</span><span class="n">hidden</span><span class="p">;</span>
+<span class="p">}</span>
+
+
+<span class="o">/**</span>
+<span class="o">*</span><span class="n">Navbar</span>
+<span class="o">*/</span>
+
+<span class="o">.</span><span class="n">nav</span><span class="o">-</span><span class="n">wrapper</span> <span class="p">{</span>
+  <span class="n">background</span><span class="o">-</span><span class="n">color</span><span class="p">:</span> <span class="c1">#424242;</span>
+<span class="p">}</span>
+
+<span class="o">.</span><span class="n">nav</span><span class="o">-</span><span class="n">wrapper</span> <span class="n">a</span><span class="p">:</span><span class="n">hover</span><span class="p">{</span>
+  <span class="n">background</span><span class="o">-</span><span class="n">color</span><span class="p">:</span> <span class="c1">#505050;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</li>
+</ol>
+<p>Il nous manque encore les images (elles ne sont pas toutes utiles pour cette partie-là du tuto mais on s’en occupe maintenant), il faut les télécharger et les mettre dans le dossier <strong>images</strong> avec le bon nom:</p>
+<p><strong>books_opacity.jpg</strong> :</p>
+<img alt="_images/books_opacity.jpg" src="_images/books_opacity.jpg" />
+<p><strong>online.jpg</strong> :</p>
+<img alt="_images/online.jpg" src="_images/online.jpg" />
+<p><strong>quadrillage.png</strong> :</p>
+<img alt="_images/quadrillage.png" src="_images/quadrillage.png" />
+<p>Voici ce que vous devriez obtenir:</p>
+<p>Page principale:</p>
+<img alt="_images/home_page.PNG" src="_images/home_page.PNG" />
+<p>Navigation sur le côté:</p>
+<img alt="_images/side_nav.PNG" src="_images/side_nav.PNG" />
+<p>Normalement lorsqu’on appuie sur <strong>Cours</strong> rien ne se passe et sur <strong>Aide en ligne</strong> il n’y a que la navbar. Si on se trompe dans l’adresse par exemple: <a class="reference external" href="http://localhost:3000/coucou">http://localhost:3000/coucou</a> il y a écrit «&nbsp;Page 404!&nbsp;».
+Quand on a fini on quitte sur la console avec :  Ctrl + C.
+Avec ceci on a une bonne base pour commencer avec Socket.io!</p>
+</div>
+<div class="section" id="integration-de-socket">
+<h2>Intégration de Socket<a class="headerlink" href="#integration-de-socket" title="Lien permanent vers ce titre">¶</a></h2>
+<p>1. On va tout d’abord initialiser la connection.
+On va maintenant utiliser Socket.io. On commence par l’installer sur la console à la racine du projet:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">npm</span> <span class="n">install</span> <span class="o">--</span><span class="n">save</span> <span class="n">socket</span><span class="o">.</span><span class="n">io</span>
+</pre></div>
+</div>
+<p>Pour le côté serveur, on ajoute à <strong>app.js</strong> socket.io les lignes suivantes pour pouvoir utiliser socket.io:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">var</span> <span class="n">http</span> <span class="o">=</span> <span class="n">require</span><span class="p">(</span><span class="s1">&#39;http&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">Server</span><span class="p">(</span><span class="n">app</span><span class="p">);</span>
+<span class="n">var</span> <span class="n">io</span> <span class="o">=</span> <span class="n">require</span><span class="p">(</span><span class="s1">&#39;socket.io&#39;</span><span class="p">)(</span><span class="n">http</span><span class="p">);</span>
+</pre></div>
+</div>
+<p>et après les appels à “app”:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">io</span><span class="o">.</span><span class="n">on</span><span class="p">(</span><span class="s1">&#39;connection&#39;</span><span class="p">,</span> <span class="n">function</span><span class="p">(</span><span class="n">socket</span><span class="p">){</span>
+  <span class="n">console</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="s1">&#39;a user connected&#39;</span><span class="p">);</span>
+<span class="p">});</span>
+</pre></div>
+</div>
+<p>Afin que le serveur soit réceptif lorsque quelqu’un veut entamer une connexion.</p>
+<p>On modifie également la fin du fichier, le “app.listen” devient “http.listen”:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">http</span><span class="o">.</span><span class="n">listen</span><span class="p">(</span><span class="n">port</span><span class="p">,</span> <span class="n">function</span><span class="p">()</span> <span class="p">{</span>
+<span class="n">console</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="s2">&quot;Listening on: http://localhost:&quot;</span> <span class="o">+</span> <span class="n">port</span><span class="o">.</span><span class="n">toString</span><span class="p">())</span>
+<span class="p">})</span>
+</pre></div>
+</div>
+<p>Ce qui nous donne pour le fichier <strong>app.js</strong> :</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">var</span> <span class="n">express</span> <span class="o">=</span> <span class="n">require</span><span class="p">(</span><span class="s1">&#39;express&#39;</span><span class="p">)</span>
+<span class="n">var</span> <span class="n">app</span> <span class="o">=</span> <span class="n">express</span><span class="p">()</span>
+
+<span class="n">var</span> <span class="n">http</span> <span class="o">=</span> <span class="n">require</span><span class="p">(</span><span class="s1">&#39;http&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">Server</span><span class="p">(</span><span class="n">app</span><span class="p">);</span>
+<span class="n">var</span> <span class="n">io</span> <span class="o">=</span> <span class="n">require</span><span class="p">(</span><span class="s1">&#39;socket.io&#39;</span><span class="p">)(</span><span class="n">http</span><span class="p">);</span>
+
+<span class="o">//</span> <span class="n">Pour</span> <span class="n">utiliser</span> <span class="n">ejs</span><span class="p">:</span>
+<span class="n">app</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="s1">&#39;view engine&#39;</span><span class="p">,</span> <span class="s1">&#39;ejs&#39;</span><span class="p">)</span>
+<span class="o">//</span> <span class="n">Pour</span> <span class="n">accéder</span> <span class="n">aux</span> <span class="n">fichiers</span> <span class="s1">&#39;static&#39;</span> <span class="n">comme</span> <span class="n">les</span> <span class="n">images</span><span class="p">:</span>
+<span class="n">app</span><span class="o">.</span><span class="n">use</span><span class="p">(</span><span class="s2">&quot;/static&quot;</span><span class="p">,</span> <span class="n">express</span><span class="o">.</span><span class="n">static</span><span class="p">(</span><span class="n">__dirname</span> <span class="o">+</span> <span class="s1">&#39;/assets&#39;</span><span class="p">))</span>
+
+<span class="o">//</span> <span class="n">On</span> <span class="n">créé</span> <span class="n">le</span> <span class="n">chemin</span> <span class="n">vers</span> <span class="n">la</span> <span class="n">page</span> <span class="n">d</span><span class="s1">&#39;accueil qui est home.ejs</span>
+<span class="n">app</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;/&#39;</span><span class="p">,</span> <span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="n">response</span><span class="p">)</span> <span class="o">=&gt;</span> <span class="p">{</span>
+    <span class="n">response</span><span class="o">.</span><span class="n">render</span><span class="p">(</span><span class="s2">&quot;home&quot;</span><span class="p">)</span>
+<span class="p">})</span>
+
+<span class="o">//</span> <span class="n">On</span> <span class="n">créé</span> <span class="n">le</span> <span class="n">chemin</span> <span class="n">vers</span> <span class="n">l</span><span class="s1">&#39;aide en ligne qui est websocketdemo.ejs</span>
+<span class="n">app</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;/websocketdemo&#39;</span><span class="p">,</span> <span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="n">response</span><span class="p">)</span> <span class="o">=&gt;</span> <span class="p">{</span>
+    <span class="n">response</span><span class="o">.</span><span class="n">render</span><span class="p">(</span><span class="s2">&quot;websocketdemo&quot;</span><span class="p">)</span>
+<span class="p">})</span>
+
+<span class="o">//</span> <span class="n">Si</span> <span class="n">aucun</span> <span class="n">des</span> <span class="n">chemins</span> <span class="n">précédents</span> <span class="n">ne</span> <span class="n">correspond</span><span class="p">,</span> <span class="n">on</span> <span class="n">envoie</span> <span class="n">la</span> <span class="n">page</span> <span class="mi">404</span><span class="p">:</span>
+<span class="n">app</span><span class="o">.</span><span class="n">use</span><span class="p">(</span><span class="n">function</span> <span class="p">(</span><span class="n">req</span><span class="p">,</span> <span class="n">res</span><span class="p">,</span> <span class="nb">next</span><span class="p">)</span> <span class="p">{</span>
+    <span class="n">res</span><span class="o">.</span><span class="n">status</span><span class="p">(</span><span class="mi">404</span><span class="p">)</span><span class="o">.</span><span class="n">render</span><span class="p">(</span><span class="s2">&quot;404&quot;</span><span class="p">)</span>
+<span class="p">})</span>
+
+<span class="o">//</span> <span class="n">Ecoute</span> <span class="n">les</span> <span class="n">évènements</span> <span class="s1">&#39;connection&#39;</span> <span class="n">qui</span> <span class="n">arrivent</span> <span class="n">et</span> <span class="n">affiche</span> <span class="n">un</span> <span class="n">message</span> <span class="n">à</span> <span class="n">la</span> <span class="n">console</span>
+<span class="n">io</span><span class="o">.</span><span class="n">on</span><span class="p">(</span><span class="s1">&#39;connection&#39;</span><span class="p">,</span> <span class="n">function</span><span class="p">(</span><span class="n">socket</span><span class="p">){</span>
+  <span class="n">console</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="s1">&#39;a user connected&#39;</span><span class="p">);</span>
+<span class="p">});</span>
+
+<span class="n">port</span> <span class="o">=</span> <span class="mi">3000</span>
+<span class="n">http</span><span class="o">.</span><span class="n">listen</span><span class="p">(</span><span class="n">port</span><span class="p">,</span> <span class="n">function</span><span class="p">()</span> <span class="p">{</span>
+  <span class="n">console</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="s2">&quot;Listening on: http://localhost:&quot;</span> <span class="o">+</span> <span class="n">port</span><span class="o">.</span><span class="n">toString</span><span class="p">())</span>
+<span class="p">})</span>
+</pre></div>
+</div>
+<p>Pour le côté client (navigateur):
+On ajoute l’importation de socket.io.js et de jquery-1.11.1.js au fichier <strong>js_import.ejs</strong> ce qui nous donne dans le bon ordre:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span>&lt;!-- Attention à respecter l&#39;ordre d&#39;appel des imports! --&gt;
+&lt;script src=&quot;https://ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js&quot;&gt;&lt;/script&gt;
+&lt;script src=&quot;https://code.jquery.com/jquery-1.11.1.js&quot;&gt;&lt;/script&gt;
+&lt;script type=&quot;text/javascript&quot; src=&quot;/static/node_modules/jquery/dist/jquery.min.js&quot;&gt;&lt;/script&gt;
+&lt;script type=&quot;text/javascript&quot; src=&quot;/static/node_modules/materialize-css/dist/js/materialize.min.js&quot;&gt;&lt;/script&gt;
+&lt;script src=&quot;/socket.io/socket.io.js&quot;&gt;&lt;/script&gt;
+&lt;script src=&quot;/static/javascript.js&quot;&gt;&lt;/script&gt;
+</pre></div>
+</div>
+<p>Et on ouvre la connection côté navigateur dans le fichier <strong>socket.js</strong> ou l’on va mettre tout ce qui permet de faire marcher le chat:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">var</span> <span class="n">socket</span> <span class="o">=</span> <span class="n">io</span><span class="p">();</span>
+</pre></div>
+</div>
+<p>On appelle ensuite ce fichier à la fin de <strong>websocketdemo.ejs</strong> juste après le “&lt;% include partials/js_import.ejs %&gt;”:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="o">&lt;</span><span class="n">script</span> <span class="n">src</span><span class="o">=</span><span class="s2">&quot;/static/socket.js&quot;</span><span class="o">&gt;&lt;/</span><span class="n">script</span><span class="o">&gt;</span>
+</pre></div>
+</div>
+<p>A ce stade, si on lance le serveur et qu’on ouvre le site sur le navigateur sur l’onglet <strong>Aide en ligne</strong>, à chaque fois qu’on relance la page ou qu’on ouvre une nouvelle fenêtre avec le site sur cet onglet ‘a user connected’ s’affiche sur la console.
+Pour ajouter aussi un log lors de la déconnexion on rajoute les lignes suivantes en dessous le “console.log(“a user connected”);” toujours dans le io.on dans le fichier <strong>app.js</strong>:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="o">//</span><span class="n">Pour</span> <span class="n">afficher</span> <span class="n">quand</span> <span class="n">un</span> <span class="n">utilisateur</span> <span class="n">se</span> <span class="n">deconnecte</span>
+<span class="n">socket</span><span class="o">.</span><span class="n">on</span><span class="p">(</span><span class="s1">&#39;disconnect&#39;</span><span class="p">,</span> <span class="n">function</span><span class="p">(){</span>
+  <span class="n">console</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="s1">&#39;user disconnected&#39;</span><span class="p">);</span>
+<span class="p">});</span>
+</pre></div>
+</div>
+<p>On peut refaire la manipulation précédente et voir “user disconnected” quand on quitte l’onglet.</p>
+<p>2.On va maintenant créér la structure du chat et apprendre à envoyer des messages. On s’occupe du html, on rajoute ce bout de cote dans <strong>websocketdemo.ejs</strong>:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="o">&lt;</span><span class="n">div</span> <span class="n">class</span><span class="o">=</span><span class="s2">&quot;row&quot;</span> <span class="nb">id</span><span class="o">=</span><span class="s2">&quot;screen2&quot;</span><span class="o">&gt;</span>
+
+      <span class="o">&lt;</span><span class="n">div</span> <span class="n">class</span><span class="o">=</span><span class="s2">&quot;col s7&quot;</span><span class="o">&gt;</span>
+          <span class="o">&lt;</span><span class="n">div</span> <span class="n">class</span><span class="o">=</span><span class="s2">&quot;divcolored&quot;</span><span class="o">&gt;</span>
+
+            <span class="o">&lt;</span><span class="n">div</span> <span class="n">class</span><span class="o">=</span><span class="s2">&quot;row&quot;</span><span class="o">&gt;</span>
+             <span class="o">&lt;</span><span class="n">div</span> <span class="n">class</span><span class="o">=</span><span class="s2">&quot;col s3&quot;</span><span class="o">&gt;</span>
+               <span class="o">&lt;</span><span class="n">form</span> <span class="n">action</span><span class="o">=</span><span class="s2">&quot;&quot;</span> <span class="nb">id</span><span class="o">=</span><span class="s2">&quot;listusers&quot;</span><span class="o">&gt;</span>
+               <span class="o">&lt;/</span><span class="n">form</span><span class="o">&gt;</span>
+             <span class="o">&lt;/</span><span class="n">div</span><span class="o">&gt;</span>
+
+             <span class="o">&lt;</span><span class="n">div</span> <span class="n">class</span><span class="o">=</span><span class="s2">&quot;col s9&quot;</span> <span class="o">&gt;</span>
+               <span class="o">&lt;</span><span class="n">div</span> <span class="n">class</span><span class="o">=</span><span class="s2">&quot;row&quot;</span><span class="o">&gt;</span>
+                 <span class="o">&lt;</span><span class="n">div</span> <span class="n">class</span><span class="o">=</span><span class="s2">&quot;col s12&quot;</span> <span class="o">&gt;</span>
+                  <span class="o">&lt;</span><span class="n">ul</span> <span class="nb">id</span><span class="o">=</span><span class="s2">&quot;messages&quot;</span><span class="o">&gt;&lt;/</span><span class="n">ul</span><span class="o">&gt;</span>
+                  <span class="o">&lt;/</span><span class="n">div</span><span class="o">&gt;</span>
+                  <span class="o">&lt;</span><span class="n">div</span> <span class="n">class</span><span class="o">=</span><span class="s2">&quot;col s11&quot;</span> <span class="o">&gt;</span>
+                  <span class="o">&lt;</span><span class="n">form</span> <span class="n">action</span><span class="o">=</span><span class="s2">&quot;&quot;</span> <span class="nb">id</span><span class="o">=</span><span class="s2">&quot;inputmessage&quot;</span><span class="o">&gt;</span>
+                    <span class="o">&lt;</span><span class="nb">input</span> <span class="nb">id</span><span class="o">=</span><span class="s2">&quot;m&quot;</span> <span class="n">autocomplete</span><span class="o">=</span><span class="s2">&quot;off&quot;</span> <span class="n">placeholder</span><span class="o">=</span><span class="s2">&quot;Tapez un message ...&quot;</span><span class="o">/&gt;</span>
+                  <span class="o">&lt;/</span><span class="n">form</span><span class="o">&gt;</span>
+                  <span class="o">&lt;/</span><span class="n">div</span><span class="o">&gt;</span>
+                <span class="o">&lt;/</span><span class="n">div</span><span class="o">&gt;</span>
+              <span class="o">&lt;/</span><span class="n">div</span><span class="o">&gt;</span>
+
+            <span class="o">&lt;/</span><span class="n">div</span><span class="o">&gt;</span>
+        <span class="o">&lt;/</span><span class="n">div</span><span class="o">&gt;</span>
+      <span class="o">&lt;/</span><span class="n">div</span><span class="o">&gt;</span>
+
+<span class="o">&lt;/</span><span class="n">div</span><span class="o">&gt;</span>
+</pre></div>
+</div>
+<p>et du css dans <strong>main.css</strong>:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="o">/**</span>
+<span class="o">*</span><span class="n">Chat</span>
+<span class="o">*/</span>
+
+<span class="c1">#inputmessage{</span>
+<span class="p">}</span>
+
+<span class="c1">#m{</span>
+  <span class="n">width</span><span class="p">:</span> <span class="mi">100</span><span class="o">%</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="c1">#messages {</span>
+  <span class="nb">list</span><span class="o">-</span><span class="n">style</span><span class="o">-</span><span class="nb">type</span><span class="p">:</span> <span class="n">none</span><span class="p">;</span>
+  <span class="n">height</span><span class="p">:</span> <span class="mi">80</span><span class="o">%</span><span class="p">;</span>
+  <span class="n">overflow</span><span class="p">:</span> <span class="n">auto</span><span class="p">;</span>
+  <span class="n">word</span><span class="o">-</span><span class="n">wrap</span><span class="p">:</span> <span class="k">break</span><span class="o">-</span><span class="n">word</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="c1">#messages li { padding: 5px 10px; }</span>
+
+<span class="o">.</span><span class="n">divcolored</span><span class="p">{</span>
+  <span class="n">height</span><span class="p">:</span> <span class="mi">85</span><span class="o">%</span><span class="p">;</span>
+  <span class="n">border</span><span class="p">:</span> <span class="n">solid</span> <span class="mi">1</span><span class="n">px</span> <span class="n">grey</span><span class="p">;</span>
+  <span class="n">border</span><span class="o">-</span><span class="n">radius</span><span class="p">:</span> <span class="mi">3</span><span class="n">px</span><span class="p">;</span>
+  <span class="n">background</span><span class="o">-</span><span class="n">color</span><span class="p">:</span><span class="n">white</span><span class="p">;</span>
+  <span class="n">position</span><span class="p">:</span> <span class="n">relative</span><span class="p">;</span>
+<span class="p">}</span>
+
+
+<span class="o">/**</span>
+<span class="o">*</span><span class="n">Utilisateurs</span>
+<span class="o">*/</span>
+
+<span class="c1">#listusers{</span>
+  <span class="n">margin</span><span class="o">-</span><span class="n">top</span><span class="p">:</span> <span class="mi">0</span><span class="n">px</span><span class="p">;</span>
+  <span class="n">height</span><span class="p">:</span> <span class="mi">100</span><span class="o">%</span><span class="p">;</span>
+  <span class="n">overflow</span><span class="o">-</span><span class="n">y</span><span class="p">:</span> <span class="n">auto</span><span class="p">;</span>
+  <span class="n">overflow</span><span class="o">-</span><span class="n">x</span><span class="p">:</span> <span class="n">hidden</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="o">.</span><span class="n">chip</span><span class="p">{</span>
+  <span class="n">overflow</span><span class="p">:</span> <span class="n">hidden</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>Si vous lancer le site vous verrez dans <strong>Aide en ligne</strong> l’espace dédié au chat. Dans <strong>app.js</strong> dans le io.on, on va demander au serveur lorsqu’il reçoit un objet de type “chat message” de la part d’un des utilisateurs de le renvoyer à tous les utilisateurs:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">socket</span><span class="o">.</span><span class="n">on</span><span class="p">(</span><span class="s1">&#39;chat message&#39;</span><span class="p">,</span> <span class="n">function</span><span class="p">(</span><span class="n">obj</span><span class="p">){</span>
+    <span class="n">io</span><span class="o">.</span><span class="n">emit</span><span class="p">(</span><span class="s1">&#39;chat message&#39;</span><span class="p">,</span> <span class="n">obj</span><span class="p">);</span>
+<span class="p">});</span>
+</pre></div>
+</div>
+<p>Quand au côté client dans <strong>socket.js</strong>, dès qu’un message est tapé, il va l’envoyer au serveur, et dès qu’un message est reçu de la part du serveur, il va l’afficher:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span>$(function () {
+
+  var socket = io();
+
+  $(&#39;#inputmessage&#39;).submit(function(){ // Pour envoyer un message sur le chat
+    var input = $(&#39;#m&#39;).val();
+    $(&#39;#m&#39;).val(&#39;&#39;);
+    socket.emit(&#39;chat message&#39;, input); // On envoie le message au serveur qui s&#39;occupera d&#39;addresser le message a la bonne personne
+    return false;
+  });
+
+  socket.on(&#39;chat message&#39;, function(myObj){ // Quand on recoit un message destine a tout le monde retransmis par le serveur
+    $(&#39;#messages&#39;).append($(&#39;&lt;li&gt;&#39;).text(myObj)); // On l&#39;ajoute au chat
+    // Pour scroll automatiquement vers le bas:
+    var elem = document.getElementById(&#39;messages&#39;);
+    elem.scrollTop = elem.scrollHeight;
+  });
+
+});
+</pre></div>
+</div>
+<p>Si vous relancer la page sur plusieurs onglets pour simuler plusieurs utilisateurs, vous pourrez constater que l’on arrive bien à envoyer des messages à tout le monde.
+Si vous réactualisez un des onglets, toute la discussion est perdue: c’est une nouvelle connection.
+On va s’amuser à faire quelques tests (penser à relancer le serveur à chaque fois sur la console):</p>
+<ul class="simple">
+<li>on va essayer le broadcast. Il suffit de remplacer «&nbsp;io.emit(“chat message”, obj);&nbsp;» par «&nbsp;socket.broadcast.emit(“chat message”, obj);&nbsp;» dans <strong>app.js</strong>. Tout le monde reçoit nos messages sauf nous-même!</li>
+<li>maintenant, on ne va envoyer des messages qu’à nous même en remplaçant «&nbsp;socket.broadcast.emit(“chat message”, obj);&nbsp;» par «&nbsp;socket.emit(“chat message”, obj);&nbsp;».</li>
+</ul>
+<p>Maintenant qu’on a compris comment ça fonctionne, on peut remettre io.emit, ce qui est le plus adapté pour un chat.</p>
+</div>
+<div class="section" id="fonctionnalites-du-chat">
+<h2>Fonctionnalités du chat<a class="headerlink" href="#fonctionnalites-du-chat" title="Lien permanent vers ce titre">¶</a></h2>
+<p>1.Maintenant, on veut permettre aux gens de pouvoir se connecter avec des pseudos. On va donc avant d’afficher le chat afficher un formulaire de connection.
+Voici le html qui est à rajouter dans <strong>websocketdemo.ejs</strong> juste avant ce qu’on a mis précédemment:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="o">&lt;</span><span class="n">div</span> <span class="n">class</span><span class="o">=</span><span class="s2">&quot;row&quot;</span> <span class="nb">id</span><span class="o">=</span><span class="s2">&quot;screen1&quot;</span><span class="o">&gt;</span>
+    <span class="o">&lt;</span><span class="n">div</span> <span class="n">class</span><span class="o">=</span><span class="s2">&quot;image&quot;</span><span class="o">&gt;</span>
+      <span class="o">&lt;</span><span class="n">div</span> <span class="n">class</span><span class="o">=</span><span class="s2">&quot;col s4 offset-s4&quot;</span> <span class="nb">id</span><span class="o">=</span><span class="s2">&quot;formulaire&quot;</span><span class="o">&gt;</span>
+       <span class="o">&lt;</span><span class="n">p</span><span class="o">&gt;</span> <span class="n">Bienvenue</span> <span class="n">sur</span> <span class="n">l</span><span class="s1">&#39;aide en ligne! &lt;p&gt;</span>
+       <span class="o">&lt;/</span><span class="n">br</span><span class="o">&gt;</span>
+       <span class="o">&lt;</span><span class="n">form</span> <span class="n">action</span><span class="o">=</span><span class="s2">&quot;&quot;</span> <span class="nb">id</span><span class="o">=</span><span class="s2">&quot;inputname&quot;</span><span class="o">&gt;</span>
+              <span class="o">&lt;</span><span class="n">p</span><span class="o">&gt;</span>
+                <span class="o">&lt;</span><span class="nb">input</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;group1&quot;</span> <span class="nb">type</span><span class="o">=</span><span class="s2">&quot;radio&quot;</span> <span class="nb">id</span><span class="o">=</span><span class="s2">&quot;e&quot;</span> <span class="n">required</span><span class="o">=</span><span class="s2">&quot;required&quot;</span> <span class="n">value</span><span class="o">=</span><span class="s2">&quot;eleve&quot;</span><span class="o">/&gt;</span>
+                <span class="o">&lt;</span><span class="n">label</span> <span class="k">for</span><span class="o">=</span><span class="s2">&quot;e&quot;</span><span class="o">&gt;</span><span class="n">Eleve</span><span class="o">&lt;/</span><span class="n">label</span><span class="o">&gt;</span>
+              <span class="o">&lt;/</span><span class="n">p</span><span class="o">&gt;</span>
+              <span class="o">&lt;</span><span class="n">p</span><span class="o">&gt;</span>
+                <span class="o">&lt;</span><span class="nb">input</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;group1&quot;</span> <span class="nb">type</span><span class="o">=</span><span class="s2">&quot;radio&quot;</span> <span class="nb">id</span><span class="o">=</span><span class="s2">&quot;p&quot;</span> <span class="n">required</span><span class="o">=</span><span class="s2">&quot;required&quot;</span> <span class="n">value</span><span class="o">=</span><span class="s2">&quot;prof&quot;</span><span class="o">/&gt;</span>
+                <span class="o">&lt;</span><span class="n">label</span> <span class="k">for</span><span class="o">=</span><span class="s2">&quot;p&quot;</span><span class="o">&gt;</span><span class="n">Prof</span><span class="o">&lt;/</span><span class="n">label</span><span class="o">&gt;</span>
+             <span class="o">&lt;/</span><span class="n">p</span><span class="o">&gt;</span>
+             <span class="o">&lt;/</span><span class="n">br</span><span class="o">&gt;</span>
+                <span class="o">&lt;</span><span class="nb">input</span> <span class="nb">id</span><span class="o">=</span><span class="s2">&quot;mbis&quot;</span> <span class="n">autocomplete</span><span class="o">=</span><span class="s2">&quot;off&quot;</span> <span class="n">placeholder</span><span class="o">=</span><span class="s2">&quot;Entrez un pseudo!&quot;</span> <span class="n">required</span><span class="o">=</span><span class="s2">&quot;required&quot;</span> <span class="o">/&gt;</span>
+             <span class="o">&lt;/</span><span class="n">br</span><span class="o">&gt;&lt;/</span><span class="n">br</span><span class="o">&gt;</span>
+                <span class="o">&lt;</span><span class="n">button</span> <span class="nb">type</span><span class="o">=</span><span class="s2">&quot;submit&quot;</span> <span class="n">class</span><span class="o">=</span><span class="s2">&quot;waves-effect waves-light btn green darken-2&quot;</span> <span class="nb">id</span><span class="o">=</span><span class="s2">&quot;submitbutton&quot;</span><span class="o">&gt;</span> <span class="n">Entrer</span> <span class="o">&lt;/</span><span class="n">button</span><span class="o">&gt;</span>
+        <span class="o">&lt;/</span><span class="n">form</span><span class="o">&gt;</span>
+      <span class="o">&lt;/</span><span class="n">div</span><span class="o">&gt;</span>
+    <span class="o">&lt;/</span><span class="n">div</span><span class="o">&gt;</span>
+<span class="o">&lt;/</span><span class="n">div</span><span class="o">&gt;</span>
+</pre></div>
+</div>
+<p>et le css dans <strong>main.css</strong>:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="o">/**</span>
+<span class="o">*</span><span class="n">Formulaire</span>
+<span class="o">*/</span>
+
+<span class="c1">#formulaire{</span>
+  <span class="n">border</span><span class="p">:</span> <span class="n">solid</span> <span class="mi">1</span><span class="n">px</span><span class="p">;</span>
+  <span class="n">border</span><span class="o">-</span><span class="n">color</span><span class="p">:</span> <span class="n">grey</span><span class="p">;</span>
+  <span class="n">border</span><span class="o">-</span><span class="n">radius</span><span class="p">:</span> <span class="mi">3</span><span class="n">px</span><span class="p">;</span>
+  <span class="n">width</span><span class="p">:</span> <span class="mi">400</span><span class="n">px</span><span class="p">;</span>
+  <span class="n">height</span><span class="p">:</span> <span class="mi">325</span><span class="n">px</span><span class="p">;</span>
+
+  <span class="n">position</span><span class="p">:</span> <span class="n">absolute</span><span class="p">;</span>
+  <span class="n">top</span><span class="p">:</span><span class="mi">0</span><span class="p">;</span>
+  <span class="n">bottom</span><span class="p">:</span> <span class="mi">0</span><span class="p">;</span>
+  <span class="n">left</span><span class="p">:</span> <span class="mi">0</span><span class="p">;</span>
+  <span class="n">right</span><span class="p">:</span> <span class="mi">0</span><span class="p">;</span>
+
+  <span class="n">margin</span><span class="p">:</span> <span class="n">auto</span><span class="p">;</span>
+
+  <span class="n">background</span><span class="o">-</span><span class="n">color</span><span class="p">:</span> <span class="n">white</span><span class="p">;</span>
+  <span class="n">text</span><span class="o">-</span><span class="n">align</span><span class="p">:</span> <span class="n">center</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="c1">#submitbutton{</span>
+  <span class="nb">float</span><span class="p">:</span> <span class="n">right</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="o">.</span><span class="n">image</span><span class="p">{</span>
+  <span class="n">position</span><span class="p">:</span><span class="n">fixed</span><span class="p">;</span>
+  <span class="n">width</span><span class="p">:</span><span class="mi">100</span><span class="o">%</span><span class="p">;</span>
+  <span class="n">height</span><span class="p">:</span><span class="mi">100</span><span class="o">%</span><span class="p">;</span>
+  <span class="n">margin</span><span class="p">:</span><span class="mi">0</span><span class="p">;</span>
+  <span class="n">padding</span><span class="p">:</span><span class="mi">0</span><span class="p">;</span>
+  <span class="n">background</span><span class="o">-</span><span class="n">image</span><span class="p">:</span><span class="n">url</span><span class="p">(</span><span class="s1">&#39;images/online.jpg&#39;</span><span class="p">);</span>
+  <span class="n">background</span><span class="o">-</span><span class="n">position</span><span class="p">:</span> <span class="n">center</span> <span class="n">center</span><span class="p">;</span>
+  <span class="n">background</span><span class="o">-</span><span class="n">repeat</span><span class="p">:</span> <span class="n">no</span><span class="o">-</span><span class="n">repeat</span><span class="p">;</span>
+  <span class="n">background</span><span class="o">-</span><span class="n">attachment</span><span class="p">:</span> <span class="n">fixed</span><span class="p">;</span>
+  <span class="n">background</span><span class="o">-</span><span class="n">size</span><span class="p">:</span> <span class="n">cover</span><span class="p">;</span>
+
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>Si vous afficher maintenant, tout se superpose, c’est normal! On va gérer l’apparition des div avec javascript. Pour cela, on va dans <strong>socket.js</strong>:
+On rajoute d’abord au début une fonction qui va gérer les valeurs des radiobuttons en dehors de la fonction principale. Puis dans la fonction principale, on va tout d’abord afficher le formulaire et masquer le chat. On va creer un bloc qui nous permet de recuperer les données du formulaire et de les envoyer au serveur. Le serveur va les traiter. Soit il nous renvoie l’information que le nom est deja pris et on affiche un toast pour que l’utilisateur essaie un nouveau pseudo, soit le nom est libre et on lui affiche le chat ou il peut envoyer des messages. Voici ce que cela donne:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span>/*
+Fonction qui renvoie la valeur associee au radio button coche
+*/
+function getRadioVal(form, name) {
+    var val;
+    // get list of radio buttons with specified name
+    var radios = form.elements[name];
+    // loop through list of radio buttons
+    for (var i=0, len=radios.length; i&lt;len; i++) {
+        if ( radios[i].checked ) { // radio checked?
+            val = radios[i].value; // if so, hold its value in val
+            break; // and break out of for loop
+        }
+    }
+    return val; // return value of checked radio or undefined if none checked
+}
+
+$(function () {
+
+  var socket = io(); // On initie une nouvelle session
+  var myName = &quot;&quot;; // Variable pour connaitre le nom de la personne
+
+  // Pour faire apparaitre l&#39;ecran de connexion
+  $(&#39;#screen2&#39;).hide();
+  $(&#39;#screen1&#39;).show();
+
+
+  $(&#39;#inputname&#39;).submit(function(){ // Quand on recoit les donnees du formulaire de connexion
+    var myObj = { &quot;name&quot;: $(&#39;#mbis&#39;).val(), &quot;status&quot;:getRadioVal(document.getElementById(&#39;inputname&#39;), &#39;group1&#39;)}; // On met les donnees dans un dico
+    socket.emit(&#39;user name&#39;, myObj); // On les envoie au serveur
+    $(&#39;#mbis&#39;).val(&#39;&#39;); // On nettoie le formulaire
+    return false;
+  });
+
+  socket.on(&#39;wrong name&#39;, function(myObj){ // Si le serveur nous repond que le nom est deja pris
+    Materialize.toast(&#39;Ce pseudo a déjà été pris!&#39;, 4000) // On affiche un message a l&#39;utilisateur de tenter un autre nom
+    $(&#39;#mbis&#39;).val(&#39;&#39;);
+  });
+
+  socket.on(&#39;username available&#39;, function(name){ // Si le nom est libre
+    // On affiche le chat :
+    $(&#39;#messages&#39;).empty();
+    $(&#39;#screen1&#39;).hide();
+    $(&#39;#screen2&#39;).show();
+    myName = name; // On recupere le nom
+    $(&#39;#messages&#39;).append($(&#39;&lt;li style=&quot;color:DarkGreen;font-weight:bold;&quot;&gt;&#39;).text(&quot;Bienvenue sur la discussion &quot;+name+&quot; !&quot;)); // On affiche un message de bienvenue à la personne qui vient de se connecter
+  });
+
+  $(&#39;#inputmessage&#39;).submit(function(){ // Pour envoyer un message sur le chat
+    var input = $(&#39;#m&#39;).val();
+    $(&#39;#m&#39;).val(&#39;&#39;);
+    socket.emit(&#39;chat message&#39;, input); // On envoie le message au serveur qui s&#39;occupera d&#39;addresser le message a la bonne personne
+    return false;
+  });
+
+  socket.on(&#39;chat message&#39;, function(myObj){ // Quand on recoit un message destine a tout le monde retransmis par le serveur
+    $(&#39;#messages&#39;).append($(&#39;&lt;li&gt;&#39;).text(myObj)); // On l&#39;ajoute au chat
+    // Pour scroll automatiquement vers le bas:
+    var elem = document.getElementById(&#39;messages&#39;);
+    elem.scrollTop = elem.scrollHeight;
+  });
+
+
+});
+</pre></div>
+</div>
+<p>Et voici la partie socket du <strong>app.js</strong> associé: on rajoute des listes qui vont retenir les sockets et les status de tous les utilisateurs qui vont se connecter, et on va gérer la connection grâce au «&nbsp;socket.on(“user name”), …&nbsp;». En effet, soit le nom existe deja dans notre liste donc on previent le client que le nom est deja pris, soit on l’ajoute aux listes et on le previent que le nom est libre. A la fin, quand le client se deconnecte, on n’oublie pas de le supprimer des listes:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span>// Variables communes a tous les utilisateurs
+var dicostatus = {&quot;Tous&quot;: &quot;&quot;}; // Associe a un nom le statut (prof ou eleve)
+var dicosocket = {}; // Associe a un nom le socket associe a ce nom
+
+// Ecoute les évènements &#39;connection&#39; qui arrivent et affiche un message à la console
+io.on(&#39;connection&#39;, function(socket){
+  console.log(&#39;a user connected&#39;);
+  // Variable associee a chaque utilisateur
+  var name;
+
+  socket.on(&#39;chat message&#39;, function(obj){
+      console.log(name + &#39; : &#39; + obj);
+      io.emit(&#39;chat message&#39;, obj);
+  });
+
+  socket.on(&#39;user name&#39;, function(msg){// Quand une personne est sur l&#39;ecran de connexion
+      var name_existing = false; // On ne veut pas lui redonner le meme pseudo qu&#39;une personne deja connectee
+      for (var i in dicostatus){
+        if (i == msg.name){ // Si le nom existe deja
+          // socket.emit : on envoie qu&#39;a celui qui envoie
+          socket.emit(&#39;wrong name&#39;, name); // On signale a socket.js que ce nom existe deja
+          name_existing = true;}
+      }
+      if (!name_existing){ // Si le nom n&#39;existe pas
+          name = msg.name; // On attribue a la variable &#39;name&#39; le nom que la personne a choisi
+          dicostatus[name] = msg.status; // On met le statut qu&#39;elle a indique dans le dicostatus
+          dicosocket[name] = socket; // On rajoute son socket dans le dicosocket pour que les gens puissent s&#39;addresser a elle en privee
+          console.log(&#39;user name: &#39; + name +&#39; (&#39; + msg.status +  &#39;)&#39;);
+          //on envoie qu&#39;a celui qui envoie
+          socket.emit(&#39;username available&#39;, name); // On signale que le nom est bon
+          console.log(dicostatus);
+      }
+      });
+
+
+  socket.on(&#39;disconnect&#39;, function(){ // A la deconnexion d&#39;un utilisateur
+    console.log(name + &#39; disconnected&#39;);
+    delete dicosocket[name]; // On supprime la personne des dictionnaires
+    delete dicostatus[name];
+  });
+});
+
+port = 3000
+http.listen(port, function() {
+  console.log(&quot;Listening on: http://localhost:&quot; + port.toString())
+})
+</pre></div>
+</div>
+<p>Vous pouvez tester le site en vous connectant/ deconnectant avec plusieurs utilisateurs sur differents onglets, vous envoyer des messages, et voir au fur et à mesure ce qui s’affiche sur la console.</p>
+<p>Voici ce que cela donne à ce stade:</p>
+<p>Le formulaire :</p>
+<img alt="_images/formulaire.PNG" src="_images/formulaire.PNG" />
+<p>Le page à l’arrivée sur le chat :</p>
+<img alt="_images/chatvide.PNG" src="_images/chatvide.PNG" />
+<p>Début de conversation :</p>
+<img alt="_images/chat.PNG" src="_images/chat.PNG" />
+<div class="line-block">
+<div class="line"><br /></div>
+</div>
+<dl class="docutils">
+<dt>2.A partir de maintenant, il devient facile de rajouter des fonctionnalités spécifiques au chat. Par exemple, on peut:</dt>
+<dd><ul class="first last simple">
+<li>ajouter un petit message lorsqu’une personne se connecte ou se déconnecte.</li>
+<li>spécifier le nom de la personne qui parle</li>
+<li>afficher la liste des personnes connectées</li>
+<li>parler à un personne en privé</li>
+<li>rajouter un canvas en fond pour pouvoir dessiner, qui se gère de la même façon que les messages, seule le contenu de la transmission changeant (on a des coordonnées et non du texte)</li>
+<li>…</li>
+</ul>
+</dd>
+</dl>
+<p>Toutes ces fonctionnalités ont été implémentées et commentées, le code final est dans la partie «&nbsp;code&nbsp;» du tuto!</p>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="index.html">WebSocket</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="intro.html">Introduction au WebSocket</a></li>
+<li class="toctree-l1"><a class="reference internal" href="node.html">Le WebSocket avec Node.js</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Tutoriel : comment faire un chat sur Node.js avec Socket.io?</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#point-de-depart">Point de départ</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#integration-de-socket">Intégration de Socket</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#fonctionnalites-du-chat">Fonctionnalités du chat</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="code.html">Code</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="index.html">Documentation overview</a><ul>
+      <li>Previous: <a href="node.html" title="Chapitre précédent">Le WebSocket avec Node.js</a></li>
+      <li>Next: <a href="code.html" title="Chapitre suivant">Code</a></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Recherche rapide</h3>
+    <form class="search" action="search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2018, LECAM Marie & PUGGIONI Marion.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.6.6</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.10</a>
+      
+      |
+      <a href="_sources/tuto.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>
